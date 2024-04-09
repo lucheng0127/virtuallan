@@ -12,8 +12,9 @@ func NewServerCmd() *cli.Command {
 		Action: server.Run,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "cfg-dir",
-				Usage:    "config directory that contain config.yaml, server.crt, server.key for server run",
+				Name:     "config-file",
+				Aliases:  []string{"c"},
+				Usage:    "config yaml to launch virtuallan server",
 				Required: true,
 			},
 		},

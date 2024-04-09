@@ -51,30 +51,31 @@ func RandStr(n int) string {
 	return string(b)
 }
 
-func NewTap() (*water.Interface, error) {
+func NewTap(br string) (*water.Interface, error) {
 	config := new(water.Config)
 	config.DeviceType = water.TAP
-	config.Name = fmt.Sprintf("tap%s", RandStr(4))
+	config.Name = fmt.Sprintf("tap-%s", RandStr(4))
 
 	iface, err := water.New(*config)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = utils.AsignAddrToLink(config.Name, "192.168.123.1/24", true); err != nil {
+	err = utils.SetLinkMaster(config.Name, br)
+	if err != nil {
 		return nil, err
 	}
 
 	return iface, nil
 }
 
-func GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
+func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
 	client, ok := UPool[addr.String()]
 	if ok {
 		return client, nil
 	}
 
-	iface, err := NewTap()
+	iface, err := NewTap(svc.Bridge)
 	if err != nil {
 		return nil, err
 	}

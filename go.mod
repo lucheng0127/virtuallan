@@ -1,11 +1,12 @@
 module github.com/lucheng0127/virtuallan
 
-go 1.21.8
+go 1.20
 
 require (
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/vishvananda/netlink v1.1.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

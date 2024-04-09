@@ -25,3 +25,21 @@ func AsignAddrToLink(name, addr string, up bool) error {
 
 	return nil
 }
+
+func SetLinkMaster(iface, br string) error {
+	ln, err := netlink.LinkByName(iface)
+	if err != nil {
+		return err
+	}
+
+	brLn, err := netlink.LinkByName(br)
+	if err != nil {
+		return err
+	}
+
+	if err = netlink.LinkSetMaster(ln, brLn); err != nil {
+		return err
+	}
+
+	return netlink.LinkSetUp(ln)
+}
