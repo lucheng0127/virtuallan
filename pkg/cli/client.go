@@ -13,7 +13,14 @@ func NewClientCmd() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "target",
+				Aliases:  []string{"t"},
 				Usage:    "socket virtuallan server listened on",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "addr",
+				Aliases:  []string{"a"},
+				Usage:    "ipv4 address of current endpoint",
 				Required: true,
 			},
 		},

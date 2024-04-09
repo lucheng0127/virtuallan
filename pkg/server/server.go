@@ -3,11 +3,14 @@ package server
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
 
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	"github.com/urfave/cli/v2"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 type Server struct {
@@ -85,6 +88,21 @@ func (svc *Server) ListenAndServe() error {
 	}
 }
 
+func (svc *Server) Teardown() {
+	err := utils.DelLinkByName(svc.Bridge)
+	if err != nil {
+		fmt.Printf("Delete bridge %s %s\n", svc.Bridge, err.Error())
+	}
+
+	os.Exit(0)
+}
+
+func (svc *Server) HandleSignal(sigChan chan os.Signal) {
+	sig := <-sigChan
+	fmt.Printf("Received signal: %v, stop server", sig)
+	svc.Teardown()
+}
+
 func Run(cCtx *cli.Context) error {
 	svc := new(Server)
 
@@ -94,6 +112,11 @@ func Run(cCtx *cli.Context) error {
 	}
 
 	svc.ServerConfig = cfg
+
+	// Handle signel to delete bridge
+	sigChan := make(chan os.Signal, 8)
+	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)
+	go svc.HandleSignal(sigChan)
 
 	return svc.ListenAndServe()
 }

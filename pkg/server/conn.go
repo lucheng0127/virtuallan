@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 
 	"github.com/lucheng0127/virtuallan/pkg/utils"
@@ -41,41 +40,13 @@ func init() {
 	UPool = make(map[string]*UClient)
 }
 
-func RandStr(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
-
-func NewTap(br string) (*water.Interface, error) {
-	config := new(water.Config)
-	config.DeviceType = water.TAP
-	config.Name = fmt.Sprintf("tap-%s", RandStr(4))
-
-	iface, err := water.New(*config)
-	if err != nil {
-		return nil, err
-	}
-
-	err = utils.SetLinkMaster(config.Name, br)
-	if err != nil {
-		return nil, err
-	}
-
-	return iface, nil
-}
-
 func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
 	client, ok := UPool[addr.String()]
 	if ok {
 		return client, nil
 	}
 
-	iface, err := NewTap(svc.Bridge)
+	iface, err := utils.NewTap(svc.Bridge)
 	if err != nil {
 		return nil, err
 	}

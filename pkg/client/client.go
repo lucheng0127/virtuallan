@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/lucheng0127/virtuallan/pkg/utils"
-	"github.com/songgao/water"
 	"github.com/urfave/cli/v2"
 )
 
@@ -20,16 +19,12 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
-	config := new(water.Config)
-	config.DeviceType = water.TAP
-	config.Name = "tap0"
-
-	iface, err := water.New(*config)
+	iface, err := utils.NewTap("")
 	if err != nil {
 		return err
 	}
 
-	if err = utils.AsignAddrToLink("tap0", "192.168.123.2/24", true); err != nil {
+	if err = utils.AsignAddrToLink(iface.Name(), cCtx.String("addr"), true); err != nil {
 		return err
 	}
 
