@@ -10,7 +10,12 @@ import (
 )
 
 func Run(cCtx *cli.Context) error {
-	conn, err := net.Dial("tcp4", cCtx.String("target"))
+	udpAddr, err := net.ResolveUDPAddr("udp4", cCtx.String("target"))
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.DialUDP("udp4", nil, udpAddr)
 	if err != nil {
 		return err
 	}
