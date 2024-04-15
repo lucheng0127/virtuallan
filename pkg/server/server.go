@@ -99,14 +99,14 @@ func (svc *Server) Teardown() {
 
 func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 	sig := <-sigChan
-	fmt.Printf("Received signal: %v, stop server", sig)
+	fmt.Printf("Received signal: %v, stop server\n", sig)
 	svc.Teardown()
 }
 
 func Run(cCtx *cli.Context) error {
 	svc := new(Server)
 
-	cfg, err := config.LoadConfigFile(cCtx.String("config-file"))
+	cfg, err := config.LoadConfigFile(config.GetCfgPath(cCtx.String("config-dir")))
 	if err != nil {
 		return err
 	}
