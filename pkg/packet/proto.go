@@ -7,11 +7,9 @@ import (
 )
 
 const (
-	HeadLen = 16
-
 	P_KEEPALIVE uint16 = 0x1b00 | 0x1
 	P_AUTH      uint16 = 0x1b00 | (0x01 << 1)
-	P_DATA      uint16 = 0x1b00 | (0x01 << 2)
+	P_RAW       uint16 = 0x1b00 | (0x01 << 2)
 )
 
 type VLHeader struct {
@@ -28,6 +26,7 @@ type VLPkt struct {
 	VLBody
 }
 
+// Encode vlpkt into byte array
 func (pkt *VLPkt) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -44,12 +43,14 @@ func (pkt *VLPkt) Encode() ([]byte, error) {
 	return append(buf.Bytes(), bodyBytes...), nil
 }
 
+// Decode byte array into vlpkt
 func Decode(stream []byte) (*VLPkt, error) {
-	if len(stream) < 16 {
+	if len(stream) < 2 {
 		return nil, errors.New("invalidate vlpkt")
 	}
 
 	h := binary.BigEndian.Uint16(stream[:2])
+	pkt := new(VLPkt)
 
 	switch h {
 	case P_AUTH:
@@ -60,8 +61,19 @@ func Decode(stream []byte) (*VLPkt, error) {
 			return nil, err
 		}
 
-		pkt := new(VLPkt)
 		pkt.VLHeader.Type = P_AUTH
+		pkt.VLBody = b
+
+		return pkt, nil
+	case P_RAW:
+		b := new(RawBody)
+
+		err := b.Decode(stream[2:])
+		if err != nil {
+			return nil, err
+		}
+
+		pkt.VLHeader.Type = P_RAW
 		pkt.VLBody = b
 
 		return pkt, nil
