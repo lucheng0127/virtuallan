@@ -1,9 +1,10 @@
 package client
 
 import (
-	"io"
+	"fmt"
 	"net"
 
+	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -28,8 +29,64 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
+	netToIface := make(chan *packet.VLPkt, 1024)
+	// TODO(shawnlu): Add keepalive
+
+	go func() {
+		go func() {
+			for {
+				pkt := <-netToIface
+				if pkt.Type != packet.P_RAW {
+					continue
+				}
+
+				stream, err := pkt.VLBody.Encode()
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				_, err = iface.Write(stream)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+			}
+		}()
+
+		for {
+			var buf [1500]byte
+
+			n, err := iface.Read(buf[:])
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			pkt := packet.NewRawPkt(buf[:n])
+			stream, err := pkt.Encode()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			_, err = conn.Write(stream)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		}
+	}()
+
 	for {
-		go io.Copy(iface, conn)
-		io.Copy(conn, iface)
+		var buf [1502]byte
+		n, _, err := conn.ReadFromUDP(buf[:])
+		if err != nil {
+			return err
+		}
+
+		pkt := packet.NewRawPkt(buf[2:n])
+
+		netToIface <- pkt
 	}
 }

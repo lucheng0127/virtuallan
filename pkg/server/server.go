@@ -5,8 +5,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 
 	"github.com/lucheng0127/virtuallan/pkg/config"
+	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	"github.com/urfave/cli/v2"
 	"github.com/vishvananda/netlink"
@@ -37,6 +39,26 @@ func (svc *Server) SetupLan() error {
 	return nil
 }
 
+func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
+	client, ok := UPool[addr.String()]
+	if ok {
+		return client, nil
+	}
+
+	iface, err := utils.NewTap(svc.Bridge)
+	if err != nil {
+		return nil, err
+	}
+
+	client = new(UClient)
+	client.Iface = iface
+	client.RAddr = addr
+	client.Conn = conn
+	client.NetToIface = make(chan *packet.VLPkt, 1024)
+	client.Once = sync.Once{}
+	UPool[addr.String()] = client
+	return client, nil
+}
 func (svc *Server) ListenAndServe() error {
 	if !config.ValidatePort(svc.Port) {
 		return fmt.Errorf("invalidate port %d", svc.Port)
@@ -58,7 +80,8 @@ func (svc *Server) ListenAndServe() error {
 	}
 
 	for {
-		var buf [1500]byte
+		// Max vlpkt len 1502 = 1500(max ethernet pkt) + 2(vlheader)
+		var buf [1502]byte
 		n, addr, err := ln.ReadFromUDP(buf[:])
 		if err != nil {
 			return err
@@ -70,21 +93,11 @@ func (svc *Server) ListenAndServe() error {
 			return err
 		}
 
-		client.Iface.Write(buf[:n])
+		go client.HandleOnce()
 
-		go func() {
-			for {
-				var buf [1500]byte
-				n, err := client.Iface.Read(buf[:])
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
+		pkt := packet.NewRawPkt(buf[2:n])
 
-				ln.WriteToUDP(buf[:n], client.RAddr)
-			}
-		}()
-
+		client.NetToIface <- pkt
 	}
 }
 

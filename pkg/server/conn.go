@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
+	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	"github.com/songgao/water"
 )
@@ -29,9 +31,11 @@ func HandleConn(conn net.Conn) {
 }
 
 type UClient struct {
-	Conn  *net.UDPConn
-	RAddr *net.UDPAddr
-	Iface *water.Interface
+	Conn       *net.UDPConn
+	RAddr      *net.UDPAddr
+	Iface      *water.Interface
+	NetToIface chan *packet.VLPkt
+	Once       sync.Once
 }
 
 var UPool map[string]*UClient
@@ -40,21 +44,52 @@ func init() {
 	UPool = make(map[string]*UClient)
 }
 
-func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
-	client, ok := UPool[addr.String()]
-	if ok {
-		return client, nil
-	}
+func (client *UClient) HandleOnce() {
+	client.Once.Do(client.Handle)
+}
 
-	iface, err := utils.NewTap(svc.Bridge)
-	if err != nil {
-		return nil, err
-	}
+func (client *UClient) Handle() {
+	go func() {
+		for {
+			pkt := <-client.NetToIface
+			if pkt.Type != packet.P_RAW {
+				continue
+			}
 
-	client = new(UClient)
-	client.Iface = iface
-	client.RAddr = addr
-	client.Conn = conn
-	UPool[addr.String()] = client
-	return client, nil
+			stream, err := pkt.VLBody.Encode()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			_, err = client.Iface.Write(stream)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		}
+	}()
+
+	for {
+		var buf [1500]byte
+
+		n, err := client.Iface.Read(buf[:])
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		pkt := packet.NewRawPkt(buf[:n])
+		stream, err := pkt.Encode()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		_, err = client.Conn.WriteToUDP(stream, client.RAddr)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+	}
 }
