@@ -13,9 +13,10 @@ const (
 )
 
 type ServerConfig struct {
-	Port   int    `yaml:"port"`
-	IP     string `yaml:"ip"`
-	Bridge string `yaml:"bridge"`
+	Port     int    `yaml:"port"`
+	IP       string `yaml:"ip"`
+	Bridge   string `yaml:"bridge"`
+	LogLevel string `yaml:"log-level"`
 }
 
 func GetCfgPath(dir string) string {

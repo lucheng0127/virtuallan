@@ -58,6 +58,18 @@ func NewKeepaliveBody(addr string) (*KeepaliveBody, error) {
 	return body, nil
 }
 
+func NewKeepalivePkt(addr string) (*VLPkt, error) {
+	b, err := NewKeepaliveBody(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &VLPkt{
+		VLHeader: VLHeader{Type: P_KEEPALIVE},
+		VLBody:   b,
+	}, nil
+}
+
 func (body *KeepaliveBody) Parse() string {
 	return string(body.IP)
 }

@@ -3,6 +3,7 @@ package client
 import (
 	"net"
 	"os"
+	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	log "github.com/sirupsen/logrus"
@@ -52,5 +53,36 @@ func HandleConn(iface *water.Interface, netToIface chan *packet.VLPkt, conn *net
 			log.Errorf("send udp stream to %s %s\n", conn.RemoteAddr().String(), err.Error())
 			os.Exit(1)
 		}
+	}
+}
+
+func SendKeepalive(conn *net.UDPConn, addr string) error {
+	pkt, err := packet.NewKeepalivePkt(addr)
+	if err != nil {
+		return err
+	}
+
+	stream, err := pkt.Encode()
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(stream)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DoKeepalive(conn *net.UDPConn, addr string, interval int) {
+	ticker := time.NewTicker(time.Second * time.Duration(interval))
+
+	for {
+		err := SendKeepalive(conn, addr)
+		if err != nil {
+			log.Errorf("send keepalive to %s %s", conn.RemoteAddr(), err.Error())
+		}
+		<-ticker.C
 	}
 }

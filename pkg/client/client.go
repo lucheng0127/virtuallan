@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/binary"
 	"net"
+	"strings"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
@@ -31,7 +32,9 @@ func Run(cCtx *cli.Context) error {
 	}
 
 	netToIface := make(chan *packet.VLPkt, 1024)
-	// TODO(shawnlu): Add keepalive
+
+	// Send keepalive
+	go DoKeepalive(conn, strings.Split(cCtx.String("addr"), "/")[0], 10)
 
 	// Switch io between udp net and tap interface
 	go HandleConn(iface, netToIface, conn)

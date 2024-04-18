@@ -1,11 +1,11 @@
 package server
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 
 	"github.com/lucheng0127/virtuallan/pkg/config"
@@ -93,9 +93,15 @@ func (svc *Server) ListenAndServe() error {
 			continue
 		}
 
-		headerType := binary.BigEndian.Uint16(buf[:2])
+		pkt, err := packet.Decode(buf[:n])
+		if err != nil {
+			log.Error("parse packet ", err)
+		}
 
-		switch headerType {
+		switch pkt.Type {
+		case packet.P_KEEPALIVE:
+			// TODO(shawnlu): Handle keepalive
+			log.Debugf("keepalive from %s", pkt.VLBody.(*packet.KeepaliveBody).Parse())
 		case packet.P_RAW:
 			client, err := svc.GetClientForAddr(addr, ln)
 			if err != nil {
@@ -103,8 +109,6 @@ func (svc *Server) ListenAndServe() error {
 			}
 
 			go client.HandleOnce()
-
-			pkt := packet.NewRawPkt(buf[2:n])
 
 			client.NetToIface <- pkt
 		default:
@@ -138,6 +142,17 @@ func Run(cCtx *cli.Context) error {
 	}
 
 	svc.ServerConfig = cfg
+
+	switch strings.ToUpper(cfg.LogLevel) {
+	case "DEBUG":
+		log.SetLevel(log.DebugLevel)
+	case "INFO":
+		log.SetLevel(log.InfoLevel)
+	case "WARN":
+		log.SetLevel(log.WarnLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 
 	// Handle signel to delete bridge
 	sigChan := make(chan os.Signal, 8)

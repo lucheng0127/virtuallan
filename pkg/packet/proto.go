@@ -84,6 +84,18 @@ func Decode(stream []byte) (*VLPkt, error) {
 		pkt.VLBody = b
 
 		return pkt, nil
+	case P_KEEPALIVE:
+		b := new(KeepaliveBody)
+
+		err := b.Decode(stream[2:])
+		if err != nil {
+			return nil, err
+		}
+
+		pkt.VLHeader.Type = P_KEEPALIVE
+		pkt.VLBody = b
+
+		return pkt, nil
 	default:
 		return nil, errors.New("unsupported vl pkt")
 	}

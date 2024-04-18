@@ -1,3 +1,4 @@
 port: 6123
 ip: 192.168.123.254/24
 bridge: br0
+log-level: debug
