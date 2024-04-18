@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -27,7 +29,7 @@ func (svc *Server) SetupLan() error {
 
 	err := netlink.LinkAdd(br)
 	if err != nil {
-		return err
+		return fmt.Errorf("create bridge %s %s", la.Name, err.Error())
 	}
 
 	// Add ip and set up
@@ -87,24 +89,35 @@ func (svc *Server) ListenAndServe() error {
 			return err
 		}
 
-		// TODO(shawnlu): Auth client first
-		client, err := svc.GetClientForAddr(addr, ln)
-		if err != nil {
-			return err
+		if n < 2 {
+			continue
 		}
 
-		go client.HandleOnce()
+		headerType := binary.BigEndian.Uint16(buf[:2])
 
-		pkt := packet.NewRawPkt(buf[2:n])
+		switch headerType {
+		case packet.P_RAW:
+			client, err := svc.GetClientForAddr(addr, ln)
+			if err != nil {
+				return err
+			}
 
-		client.NetToIface <- pkt
+			go client.HandleOnce()
+
+			pkt := packet.NewRawPkt(buf[2:n])
+
+			client.NetToIface <- pkt
+		default:
+			log.Debug("unknow stream, do nothing")
+			continue
+		}
 	}
 }
 
 func (svc *Server) Teardown() {
 	err := utils.DelLinkByName(svc.Bridge)
 	if err != nil {
-		fmt.Printf("Delete bridge %s %s\n", svc.Bridge, err.Error())
+		log.Errorf("delete bridge %s %s\n", svc.Bridge, err.Error())
 	}
 
 	os.Exit(0)
@@ -112,7 +125,7 @@ func (svc *Server) Teardown() {
 
 func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 	sig := <-sigChan
-	fmt.Printf("Received signal: %v, stop server\n", sig)
+	log.Infof("received signal: %v, stop server\n", sig)
 	svc.Teardown()
 }
 

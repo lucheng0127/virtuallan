@@ -1,34 +1,14 @@
 package server
 
 import (
-	"fmt"
-	"io"
 	"net"
+	"os"
 	"sync"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
-	"github.com/lucheng0127/virtuallan/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 )
-
-func HandleConn(conn net.Conn) {
-	// Create tap
-	config := new(water.Config)
-	config.DeviceType = water.TAP
-	config.Name = "tap0"
-
-	iface, err := water.New(*config)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	if err = utils.AsignAddrToLink("tap0", "192.168.123.1/24", true); err != nil {
-		fmt.Println(err)
-	}
-
-	go io.Copy(iface, conn)
-	io.Copy(conn, iface)
-}
 
 type UClient struct {
 	Conn       *net.UDPConn
@@ -48,6 +28,11 @@ func (client *UClient) HandleOnce() {
 	client.Once.Do(client.Handle)
 }
 
+func (client *UClient) Close() {
+	// When don't get keepalive for several times, close it
+	// TODO(shawnlu): When read from conn failed, remove it from UPool and delete tap interface
+}
+
 func (client *UClient) Handle() {
 	go func() {
 		for {
@@ -58,13 +43,13 @@ func (client *UClient) Handle() {
 
 			stream, err := pkt.VLBody.Encode()
 			if err != nil {
-				fmt.Println(err)
+				log.Warn("encode raw vlpkt body failed: ", err)
 				continue
 			}
 
 			_, err = client.Iface.Write(stream)
 			if err != nil {
-				fmt.Println(err)
+				log.Errorf("write to tap %s %s\n", client.Iface.Name(), err.Error())
 				continue
 			}
 		}
@@ -75,21 +60,22 @@ func (client *UClient) Handle() {
 
 		n, err := client.Iface.Read(buf[:])
 		if err != nil {
-			fmt.Println(err)
+			log.Errorf("read from tap %s %s\n", client.Iface.Name(), err.Error())
 			continue
 		}
 
 		pkt := packet.NewRawPkt(buf[:n])
 		stream, err := pkt.Encode()
 		if err != nil {
-			fmt.Println(err)
+			log.Warn("encode raw vlpkt failed: ", err)
 			continue
 		}
 
 		_, err = client.Conn.WriteToUDP(stream, client.RAddr)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			// If send failed it means udp server got something wrong, exit
+			log.Errorf("send udp stream to %s %s\n", client.Conn.RemoteAddr().String(), err.Error())
+			os.Exit(1)
 		}
 	}
 }

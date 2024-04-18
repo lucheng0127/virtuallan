@@ -1,11 +1,12 @@
 package client
 
 import (
-	"fmt"
+	"encoding/binary"
 	"net"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
 
@@ -32,61 +33,31 @@ func Run(cCtx *cli.Context) error {
 	netToIface := make(chan *packet.VLPkt, 1024)
 	// TODO(shawnlu): Add keepalive
 
-	go func() {
-		go func() {
-			for {
-				pkt := <-netToIface
-				if pkt.Type != packet.P_RAW {
-					continue
-				}
+	// Switch io between udp net and tap interface
+	go HandleConn(iface, netToIface, conn)
 
-				stream, err := pkt.VLBody.Encode()
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-
-				_, err = iface.Write(stream)
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-			}
-		}()
-
-		for {
-			var buf [1500]byte
-
-			n, err := iface.Read(buf[:])
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			pkt := packet.NewRawPkt(buf[:n])
-			stream, err := pkt.Encode()
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			_, err = conn.Write(stream)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-		}
-	}()
-
+	// Handle udp packet
 	for {
 		var buf [1502]byte
 		n, _, err := conn.ReadFromUDP(buf[:])
+
 		if err != nil {
 			return err
 		}
 
-		pkt := packet.NewRawPkt(buf[2:n])
+		if n < 2 {
+			continue
+		}
 
-		netToIface <- pkt
+		headerType := binary.BigEndian.Uint16(buf[:2])
+
+		switch headerType {
+		case packet.P_RAW:
+			pkt := packet.NewRawPkt(buf[2:n])
+			netToIface <- pkt
+		default:
+			log.Debug("unknow stream, do nothing")
+			continue
+		}
 	}
 }
