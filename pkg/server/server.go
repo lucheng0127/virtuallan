@@ -62,7 +62,7 @@ func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UCli
 	return client, nil
 }
 func (svc *Server) ListenAndServe() error {
-	if !config.ValidatePort(svc.Port) {
+	if !utils.ValidatePort(svc.Port) {
 		return fmt.Errorf("invalidate port %d", svc.Port)
 	}
 
