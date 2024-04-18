@@ -23,6 +23,18 @@ func NewClientCmd() *cli.Command {
 				Usage:    "ipv4 address of current endpoint",
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:     "user",
+				Aliases:  []string{"u"},
+				Usage:    "username of virtuallan endpoint",
+				Required: false,
+			},
+			&cli.StringFlag{
+				Name:     "passwd",
+				Aliases:  []string{"p"},
+				Usage:    "password of virtuallan endpoint user",
+				Required: false,
+			},
 		},
 	}
 }

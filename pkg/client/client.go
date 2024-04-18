@@ -1,17 +1,55 @@
 package client
 
 import (
+	"bufio"
 	"encoding/binary"
+	"fmt"
 	"net"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/term"
 )
 
+func getLoginInfo() (string, string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Username:")
+	user, err := reader.ReadString('\n')
+	if err != nil {
+		return "", "", err
+	}
+
+	fmt.Println("Password:")
+	bytePasswd, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		return "", "", err
+	}
+
+	passwd := string(bytePasswd)
+
+	return strings.TrimSpace(user), strings.TrimSpace(passwd), nil
+}
+
 func Run(cCtx *cli.Context) error {
+	var user, passwd string
+	if cCtx.String("passwd") == "" || cCtx.String("user") == "" {
+		u, p, err := getLoginInfo()
+		if err != nil {
+			return err
+		}
+
+		user = u
+		passwd = p
+	} else {
+		user = cCtx.String("user")
+		passwd = cCtx.String("passwd")
+	}
+
 	udpAddr, err := net.ResolveUDPAddr("udp4", cCtx.String("target"))
 	if err != nil {
 		return err
@@ -21,6 +59,9 @@ func Run(cCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO(shawnlu): Do auth
+	fmt.Printf("Auth with user: %s passwd: %s ip: %s\n", user, passwd, cCtx.String("addr"))
 
 	iface, err := utils.NewTap("")
 	if err != nil {
