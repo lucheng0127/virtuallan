@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
+	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 )
@@ -29,8 +30,13 @@ func (client *UClient) HandleOnce() {
 }
 
 func (client *UClient) Close() {
-	// When don't get keepalive for several times, close it
-	// TODO(shawnlu): When read from conn failed, remove it from UPool and delete tap interface
+	// Remove it from UPool and delete tap interface
+	log.Info("close client ", client.RAddr.String())
+	if err := utils.DelLinkByName(client.Iface.Name()); err != nil {
+		log.Error(err)
+	}
+
+	delete(UPool, client.RAddr.String())
 }
 
 func (client *UClient) Handle() {
@@ -61,7 +67,8 @@ func (client *UClient) Handle() {
 		n, err := client.Iface.Read(buf[:])
 		if err != nil {
 			log.Errorf("read from tap %s %s\n", client.Iface.Name(), err.Error())
-			continue
+			// If tap has been deleted, break it
+			goto EXIT
 		}
 
 		pkt := packet.NewRawPkt(buf[:n])
@@ -78,4 +85,7 @@ func (client *UClient) Handle() {
 			os.Exit(1)
 		}
 	}
+
+EXIT:
+	return
 }
