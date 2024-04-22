@@ -100,8 +100,12 @@ func (svc *Server) ListenAndServe() error {
 
 		switch pkt.Type {
 		case packet.P_KEEPALIVE:
-			// TODO(shawnlu): Handle keepalive
-			log.Debugf("keepalive from %s", pkt.VLBody.(*packet.KeepaliveBody).Parse())
+			// Handle keepalive
+			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String())
+			if err != nil {
+				log.Warnf("handle raddr %s keepalived pkt %s", addr.String(), err.Error())
+				// TODO(shawnlu): Send response
+			}
 		case packet.P_RAW:
 			client, err := svc.GetClientForAddr(addr, ln)
 			if err != nil {
