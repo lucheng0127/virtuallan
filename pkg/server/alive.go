@@ -2,27 +2,21 @@ package server
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type Endpoints struct {
-	IP      string
-	Addr    string
-	Expired *time.Timer
-	Once    sync.Once
+	IP   string
+	Addr string
+	Beat chan string
 }
 
 var EPMap map[string]*Endpoints
 
 func init() {
 	EPMap = make(map[string]*Endpoints, 1024)
-}
-
-func (ep *Endpoints) UpdateExpired(n int) {
-	ep.Expired = time.NewTimer(time.Second * time.Duration(n))
 }
 
 func (ep *Endpoints) Close() {
@@ -36,15 +30,15 @@ func (ep *Endpoints) Close() {
 
 func (ep *Endpoints) Countdown() {
 	for {
-		<-ep.Expired.C
-		log.Infof("endpoint %s with raddr %s don't get keepalive pkt for long time, close it\n", ep.IP, ep.Addr)
-		ep.Close()
-		break
+		select {
+		case <-ep.Beat:
+			continue
+		case <-time.After(50 * time.Second):
+			log.Infof("endpoint %s with raddr %s don't get keepalive pkt for long time, close it\n", ep.IP, ep.Addr)
+			ep.Close()
+			return
+		}
 	}
-}
-
-func (ep *Endpoints) CountdownOnce() {
-	ep.Once.Do(ep.Countdown)
 }
 
 func GetOrCreateEp(ip, raddr string) (*Endpoints, error) {
@@ -60,7 +54,10 @@ func GetOrCreateEp(ip, raddr string) (*Endpoints, error) {
 	ep = new(Endpoints)
 	ep.IP = ip
 	ep.Addr = raddr
-	ep.Once = sync.Once{}
+	ep.Beat = make(chan string)
+	EPMap[ip] = ep
+
+	go ep.Countdown()
 	return ep, nil
 }
 
@@ -72,7 +69,6 @@ func HandleKeepalive(ip, raddr string) error {
 		return err
 	}
 
-	ep.UpdateExpired(50)
-	go ep.CountdownOnce()
+	ep.Beat <- "ok"
 	return nil
 }
