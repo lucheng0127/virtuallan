@@ -41,6 +41,22 @@ func (svc *Server) SetupLan() error {
 	return nil
 }
 
+func (svc *Server) SendResponse(conn *net.UDPConn, code uint16, raddr *net.UDPAddr) {
+	pkt := packet.NewResponsePkt(code)
+
+	stream, err := pkt.Encode()
+	if err != nil {
+		log.Errorf("encode response packet %s", err.Error())
+		return
+	}
+
+	_, err = conn.WriteToUDP(stream, raddr)
+	if err != nil {
+		log.Errorf("send udp stream to %s %s\n", raddr.String(), err.Error())
+		os.Exit(1)
+	}
+}
+
 func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
 	client, ok := UPool[addr.String()]
 	if ok {
@@ -102,9 +118,10 @@ func (svc *Server) ListenAndServe() error {
 		case packet.P_KEEPALIVE:
 			// Handle keepalive
 			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String())
+
 			if err != nil {
-				log.Warnf("handle raddr %s keepalived pkt %s", addr.String(), err.Error())
-				// TODO(shawnlu): Send response
+				svc.SendResponse(ln, packet.RSP_IP_CONFLICET, addr)
+				log.Warnf("heartbeat from %s %s, send ip conflicet response", addr.String(), err.Error())
 			}
 		case packet.P_RAW:
 			client, err := svc.GetClientForAddr(addr, ln)
