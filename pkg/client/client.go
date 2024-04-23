@@ -2,11 +2,11 @@ package client
 
 import (
 	"bufio"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
@@ -60,48 +60,83 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
-	// TODO(shawnlu): Do auth
-	fmt.Printf("Auth with user: %s passwd: %s ip: %s\n", user, passwd, cCtx.String("addr"))
+	// Do auth
+	ipAddr := cCtx.String("addr")
+	netToIface := make(chan *packet.VLPkt, 1024)
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	// Handle udp packet
+	go func() {
+		for {
+			var buf [1502]byte
+			n, _, err := conn.ReadFromUDP(buf[:])
+
+			if err != nil {
+				log.Error("read from conn ", err)
+				os.Exit(1)
+			}
+
+			if n < 2 {
+				continue
+			}
+
+			pkt, err := packet.Decode(buf[:n])
+			if err != nil {
+				log.Error("parse packet ", err)
+				continue
+			}
+
+			switch pkt.Type {
+			case packet.P_RESPONSE:
+				switch pkt.VLBody.(*packet.RspBody).Code {
+				case packet.RSP_AUTH_REQUIRED:
+					log.Error("need reauth")
+					os.Exit(1)
+				case packet.RSP_IP_CONFLICET:
+					log.Error("conflicet ip ", ipAddr)
+					os.Exit(1)
+				default:
+					continue
+				}
+			case packet.P_RAW:
+				pkt := packet.NewRawPkt(buf[2:n])
+				netToIface <- pkt
+			default:
+				log.Debug("unknow stream, do nothing")
+				continue
+			}
+		}
+	}()
+
+	authPkt := packet.NewAuthPkt(user, passwd)
+	authStream, err := authPkt.Encode()
+	if err != nil {
+		log.Error("encode auth packet ", err)
+		os.Exit(1)
+	}
+
+	_, err = conn.Write(authStream)
+	if err != nil {
+		log.Error("send auth packet ", err)
+		os.Exit(1)
+	}
 
 	iface, err := utils.NewTap("")
 	if err != nil {
 		return err
 	}
 
-	if err = utils.AsignAddrToLink(iface.Name(), cCtx.String("addr"), true); err != nil {
+	if err = utils.AsignAddrToLink(iface.Name(), ipAddr, true); err != nil {
 		return err
 	}
 
-	netToIface := make(chan *packet.VLPkt, 1024)
-
 	// Send keepalive
-	go DoKeepalive(conn, strings.Split(cCtx.String("addr"), "/")[0], 10)
+	go DoKeepalive(conn, strings.Split(ipAddr, "/")[0], 10)
 
 	// Switch io between udp net and tap interface
 	go HandleConn(iface, netToIface, conn)
 
-	// Handle udp packet
-	for {
-		var buf [1502]byte
-		n, _, err := conn.ReadFromUDP(buf[:])
-
-		if err != nil {
-			return err
-		}
-
-		if n < 2 {
-			continue
-		}
-
-		headerType := binary.BigEndian.Uint16(buf[:2])
-
-		switch headerType {
-		case packet.P_RAW:
-			pkt := packet.NewRawPkt(buf[2:n])
-			netToIface <- pkt
-		default:
-			log.Debug("unknow stream, do nothing")
-			continue
-		}
-	}
+	wg.Wait()
+	return nil
 }
