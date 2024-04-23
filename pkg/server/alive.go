@@ -62,6 +62,11 @@ func GetOrCreateEp(ip, raddr string) (*Endpoints, error) {
 }
 
 func HandleKeepalive(ip, raddr string) error {
+	_, ok := UPool[raddr]
+	if !ok {
+		return fmt.Errorf("unauthed client")
+	}
+
 	log.Debugf("handle keepalive pkt for %s with ip %s", raddr, ip)
 
 	ep, err := GetOrCreateEp(ip, raddr)

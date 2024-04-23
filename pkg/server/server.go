@@ -5,11 +5,13 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
+	"github.com/lucheng0127/virtuallan/pkg/users"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -19,6 +21,7 @@ import (
 
 type Server struct {
 	*config.ServerConfig
+	userDb string
 }
 
 func (svc *Server) SetupLan() error {
@@ -57,18 +60,13 @@ func (svc *Server) SendResponse(conn *net.UDPConn, code uint16, raddr *net.UDPAd
 	}
 }
 
-func (svc *Server) GetClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
-	client, ok := UPool[addr.String()]
-	if ok {
-		return client, nil
-	}
-
+func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
 	iface, err := utils.NewTap(svc.Bridge)
 	if err != nil {
 		return nil, err
 	}
 
-	client = new(UClient)
+	client := new(UClient)
 	client.Iface = iface
 	client.RAddr = addr
 	client.Conn = conn
@@ -115,18 +113,41 @@ func (svc *Server) ListenAndServe() error {
 		}
 
 		switch pkt.Type {
+		case packet.P_AUTH:
+			u, p := pkt.VLBody.(*packet.AuthBody).Parse()
+			err = users.ValidateUser(svc.userDb, u, p)
+
+			if err != nil {
+				log.Warn(err)
+				svc.SendResponse(ln, packet.RSP_AUTH_REQUIRED, addr)
+				continue
+			}
+
+			// Create client for authed addr
+			_, err := svc.CreateClientForAddr(addr, ln)
+			if err != nil {
+				log.Errorf("create authed client %s\n", err.Error())
+			}
+
+			log.Infof("client %s auth succeed", addr.String())
 		case packet.P_KEEPALIVE:
 			// Handle keepalive
 			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String())
 
 			if err != nil {
+				if utils.IsUnauthedErr(err) {
+					continue
+				}
+
 				svc.SendResponse(ln, packet.RSP_IP_CONFLICET, addr)
 				log.Warnf("heartbeat from %s %s, send ip conflicet response", addr.String(), err.Error())
 			}
 		case packet.P_RAW:
-			client, err := svc.GetClientForAddr(addr, ln)
-			if err != nil {
-				return err
+			// Get authed client from UPool
+			client, ok := UPool[addr.String()]
+			if !ok {
+				svc.SendResponse(ln, packet.RSP_AUTH_REQUIRED, addr)
+				continue
 			}
 
 			go client.HandleOnce()
@@ -157,12 +178,14 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 func Run(cCtx *cli.Context) error {
 	svc := new(Server)
 
-	cfg, err := config.LoadConfigFile(config.GetCfgPath(cCtx.String("config-dir")))
+	cfgDir := cCtx.String("config-dir")
+	cfg, err := config.LoadConfigFile(config.GetCfgPath(cfgDir))
 	if err != nil {
 		return err
 	}
 
 	svc.ServerConfig = cfg
+	svc.userDb = filepath.Join(cfgDir, "users")
 
 	switch strings.ToUpper(cfg.LogLevel) {
 	case "DEBUG":
