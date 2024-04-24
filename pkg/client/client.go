@@ -69,7 +69,7 @@ func Run(cCtx *cli.Context) error {
 	// Handle udp packet
 	go func() {
 		for {
-			var buf [1502]byte
+			var buf [1520]byte
 			n, _, err := conn.ReadFromUDP(buf[:])
 
 			if err != nil {
@@ -100,7 +100,6 @@ func Run(cCtx *cli.Context) error {
 					continue
 				}
 			case packet.P_RAW:
-				pkt := packet.NewRawPkt(buf[2:n])
 				netToIface <- pkt
 			default:
 				log.Debug("unknow stream, do nothing")

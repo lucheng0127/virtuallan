@@ -97,7 +97,9 @@ func (svc *Server) ListenAndServe() error {
 
 	for {
 		// Max vlpkt len 1502 = 1500(max ethernet pkt) + 2(vlheader)
-		var buf [1502]byte
+		// for encrypted data len should be n*16(aes block size) + 16(key len)
+		// so buf len should be 94 * 16 + 16 = 1520
+		var buf [1520]byte
 		n, addr, err := ln.ReadFromUDP(buf[:])
 		if err != nil {
 			return err
@@ -122,6 +124,8 @@ func (svc *Server) ListenAndServe() error {
 				svc.SendResponse(ln, packet.RSP_AUTH_REQUIRED, addr)
 				continue
 			}
+
+			log.Infof("client %s login to %s succeed\n", addr.String(), u)
 
 			// Create client for authed addr
 			_, err := svc.CreateClientForAddr(addr, ln)

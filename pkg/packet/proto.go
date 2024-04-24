@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+
+	"github.com/lucheng0127/virtuallan/pkg/cipher"
 )
 
 const (
@@ -47,11 +49,32 @@ func (pkt *VLPkt) Encode() ([]byte, error) {
 		return nil, err
 	}
 
-	return append(buf.Bytes(), bodyBytes...), nil
+	stream := append(buf.Bytes(), bodyBytes...)
+	aesCipher, err := cipher.NewAESCipher(cipher.AESKEY)
+	if err != nil {
+		return nil, err
+	}
+
+	encStream, err := aesCipher.Encrypt(stream)
+	if err != nil {
+		return nil, err
+	}
+
+	return encStream, nil
 }
 
 // Decode byte array into vlpkt
-func Decode(stream []byte) (*VLPkt, error) {
+func Decode(encStream []byte) (*VLPkt, error) {
+	aesCipher, err := cipher.NewAESCipher(cipher.AESKEY)
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := aesCipher.Decrypt(encStream)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(stream) < 2 {
 		return nil, errors.New("invalidate vlpkt")
 	}
