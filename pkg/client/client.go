@@ -91,7 +91,7 @@ func Run(cCtx *cli.Context) error {
 			case packet.P_RESPONSE:
 				switch pkt.VLBody.(*packet.RspBody).Code {
 				case packet.RSP_AUTH_REQUIRED:
-					log.Error("need reauth")
+					log.Error("auth failed")
 					os.Exit(1)
 				case packet.RSP_IP_CONFLICET:
 					log.Error("conflicet ip ", ipAddr)
