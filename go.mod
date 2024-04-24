@@ -3,6 +3,7 @@ module github.com/lucheng0127/virtuallan
 go 1.20
 
 require (
+	bou.ke/monkey v1.0.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.1
