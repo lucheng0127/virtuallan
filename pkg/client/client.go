@@ -16,7 +16,7 @@ import (
 	"golang.org/x/term"
 )
 
-func getLoginInfo() (string, string, error) {
+func GetLoginInfo() (string, string, error) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Username:")
 	user, err := reader.ReadString('\n')
@@ -38,7 +38,7 @@ func getLoginInfo() (string, string, error) {
 func Run(cCtx *cli.Context) error {
 	var user, passwd string
 	if cCtx.String("passwd") == "" || cCtx.String("user") == "" {
-		u, p, err := getLoginInfo()
+		u, p, err := GetLoginInfo()
 		if err != nil {
 			return err
 		}

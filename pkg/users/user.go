@@ -29,6 +29,24 @@ func getUsers(db string) ([][]string, error) {
 	return users, nil
 }
 
+func ListUser(db string) ([]string, error) {
+	users, err := getUsers(db)
+	if err != nil {
+		return nil, err
+	}
+
+	var u []string
+	for _, uinfo := range users {
+		if len(uinfo) < 2 {
+			continue
+		}
+
+		u = append(u, uinfo[0])
+	}
+
+	return u, nil
+}
+
 func AddUser(db, user, passwd string) error {
 	users, err := getUsers(db)
 	if err != nil {

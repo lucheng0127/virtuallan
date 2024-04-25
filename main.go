@@ -13,6 +13,7 @@ func main() {
 		Commands: []*cli.Command{
 			vcli.NewServerCmd(),
 			vcli.NewClientCmd(),
+			vcli.NewUserCmd(),
 		},
 	}
 
