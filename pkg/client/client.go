@@ -96,6 +96,9 @@ func Run(cCtx *cli.Context) error {
 				case packet.RSP_IP_CONFLICET:
 					log.Error("conflicet ip ", ipAddr)
 					os.Exit(1)
+				case packet.RSP_USER_LOGGED:
+					log.Error("user already logged by other endpoint")
+					os.Exit(1)
 				default:
 					continue
 				}

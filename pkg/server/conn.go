@@ -17,6 +17,7 @@ type UClient struct {
 	Iface      *water.Interface
 	NetToIface chan *packet.VLPkt
 	Once       sync.Once
+	User       string
 }
 
 var UPool map[string]*UClient

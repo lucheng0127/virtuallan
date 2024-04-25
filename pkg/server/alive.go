@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lucheng0127/virtuallan/pkg/users"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,6 +23,7 @@ func init() {
 func (ep *Endpoints) Close() {
 	client, ok := UPool[ep.Addr]
 	if ok {
+		delete(users.UserEPMap, client.User)
 		client.Close()
 	}
 

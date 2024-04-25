@@ -11,14 +11,15 @@ import (
 const (
 	MINI_LEN = 18 // 64(mini ethernet pkt) - 18(ethernet header) - 20(ip header) - 8(udp header)
 
-	P_KEEPALIVE uint16 = 0x1b00 | 0x1
+	P_KEEPALIVE uint16 = 0x1b00 | 0x01
 	P_AUTH      uint16 = 0x1b00 | (0x01 << 1)
 	P_RAW       uint16 = 0x1b00 | (0x01 << 2)
 	P_RESPONSE  uint16 = 0x1b00 | (0x01 << 3)
 
-	RSP_AUTH_REQUIRED uint16 = 0x1
-	RSP_AUTH_SUCCEED  uint16 = 0x1 << 1
-	RSP_IP_CONFLICET  uint16 = 0x1 << 2
+	RSP_AUTH_REQUIRED uint16 = 0x01
+	RSP_AUTH_SUCCEED  uint16 = 0x01 << 1
+	RSP_IP_CONFLICET  uint16 = 0x01 << 2
+	RSP_USER_LOGGED   uint16 = 0x01 << 3
 )
 
 type VLHeader struct {

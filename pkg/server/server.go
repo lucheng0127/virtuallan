@@ -117,6 +117,14 @@ func (svc *Server) ListenAndServe() error {
 		switch pkt.Type {
 		case packet.P_AUTH:
 			u, p := pkt.VLBody.(*packet.AuthBody).Parse()
+
+			// Check user logged
+			if _, ok := users.UserEPMap[u]; ok {
+				svc.SendResponse(ln, packet.RSP_USER_LOGGED, addr)
+				continue
+			}
+
+			// Auth user
 			err = users.ValidateUser(svc.userDb, u, p)
 
 			if err != nil {
@@ -125,13 +133,15 @@ func (svc *Server) ListenAndServe() error {
 				continue
 			}
 
+			users.UserEPMap[u] = addr.String()
 			log.Infof("client %s login to %s succeed\n", addr.String(), u)
 
 			// Create client for authed addr
-			_, err := svc.CreateClientForAddr(addr, ln)
+			client, err := svc.CreateClientForAddr(addr, ln)
 			if err != nil {
 				log.Errorf("create authed client %s\n", err.Error())
 			}
+			client.User = u
 
 			log.Infof("client %s auth succeed", addr.String())
 		case packet.P_KEEPALIVE:

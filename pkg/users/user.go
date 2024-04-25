@@ -8,6 +8,12 @@ import (
 	"os"
 )
 
+var UserEPMap map[string]string
+
+func init() {
+	UserEPMap = make(map[string]string)
+}
+
 func getUsers(db string) ([][]string, error) {
 	raw, err := os.ReadFile(db)
 	if err != nil {
