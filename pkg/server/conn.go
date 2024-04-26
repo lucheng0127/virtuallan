@@ -18,6 +18,7 @@ type UClient struct {
 	NetToIface chan *packet.VLPkt
 	Once       sync.Once
 	User       string
+	IP         string
 }
 
 var UPool map[string]*UClient

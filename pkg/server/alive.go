@@ -64,7 +64,7 @@ func GetOrCreateEp(ip, raddr string) (*Endpoints, error) {
 }
 
 func HandleKeepalive(ip, raddr string) error {
-	_, ok := UPool[raddr]
+	c, ok := UPool[raddr]
 	if !ok {
 		return fmt.Errorf("unauthed client")
 	}
@@ -75,6 +75,7 @@ func HandleKeepalive(ip, raddr string) error {
 	if err != nil {
 		return err
 	}
+	c.IP = ip
 
 	ep.Beat <- "ok"
 	return nil

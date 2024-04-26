@@ -212,6 +212,13 @@ func Run(cCtx *cli.Context) error {
 		log.SetLevel(log.InfoLevel)
 	}
 
+	// Run web server
+	if svc.ServerConfig.WebConfig.Enable {
+		webSvc := &webServe{port: svc.ServerConfig.WebConfig.Port}
+		go webSvc.Serve()
+		log.Info("run web server on port ", webSvc.port)
+	}
+
 	// Handle signel to delete bridge
 	sigChan := make(chan os.Signal, 8)
 	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)

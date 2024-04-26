@@ -12,11 +12,17 @@ const (
 	USER_DB  string = "users"
 )
 
+type WebConfig struct {
+	Enable bool `yaml:"enable"`
+	Port   int  `yaml:"port"`
+}
+
 type ServerConfig struct {
-	Port     int    `yaml:"port"`
-	IP       string `yaml:"ip"`
-	Bridge   string `yaml:"bridge"`
-	LogLevel string `yaml:"log-level"`
+	Port      int    `yaml:"port"`
+	IP        string `yaml:"ip"`
+	Bridge    string `yaml:"bridge"`
+	LogLevel  string `yaml:"log-level"`
+	WebConfig `yaml:"web"`
 }
 
 func GetCfgPath(dir string) string {
