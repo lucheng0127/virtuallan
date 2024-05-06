@@ -25,6 +25,8 @@ go generate pkg/cipher/cipher.go
 go build -o virtuallan main.go
 ```
 
+go generate will generate an random aes key
+
 ## Getting started
 
 **Server**
@@ -63,6 +65,25 @@ OPTIONS:
 ```
 
 If not set -u and -p flags, you need to input user name and passwd in console
+
+**User manage**
+
+```
+➜  virtuallan git:(master) ✗ ./virtuallan user list  -d ./config/users
+shawn,guest
+➜  virtuallan git:(master) ✗ ./virtuallan user add -h
+NAME:
+   virtuallan user add - add user
+
+USAGE:
+   virtuallan user add [command options] [arguments...]
+
+OPTIONS:
+   --db value, -d value      user db file loaction
+   --user value, -u value    username of user
+   --passwd value, -p value  password of user
+   --help, -h                show help
+```
 
 ### Try it out
 
