@@ -63,3 +63,49 @@ OPTIONS:
 ```
 
 If not set -u and -p flags, you need to input user name and passwd in console
+
+### Try it out
+
+If enable web, it will start a http server on port 8000. Check the endpoints in index page.
+![monitor](./docs/statics/endpoints.png)
+
+Links of virtuallan server
+```
+root@i-5tb1rpqn:~# ip a show br0
+3: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 52:85:8d:51:1f:e0 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.123.254/24 brd 192.168.123.255 scope global br0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::b46f:44ff:fef6:f8a9/64 scope link 
+       valid_lft forever preferred_lft forever
+root@i-5tb1rpqn:~# ip l show master br0
+4: tap-XALX: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 56:f7:9f:01:b9:c6 brd ff:ff:ff:ff:ff:ff
+5: tap-wigt: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 62:01:07:45:89:56 brd ff:ff:ff:ff:ff:ff
+root@i-5tb1rpqn:~# ping 192.168.123.1 -c 1
+PING 192.168.123.1 (192.168.123.1) 56(84) bytes of data.
+64 bytes from 192.168.123.1: icmp_seq=1 ttl=64 time=39.5 ms
+
+--- 192.168.123.1 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 39.514/39.514/39.514/0.000 ms
+root@i-5tb1rpqn:~# ping 192.168.123.2 -c 1
+PING 192.168.123.2 (192.168.123.2) 56(84) bytes of data.
+64 bytes from 192.168.123.2: icmp_seq=1 ttl=64 time=32.7 ms
+
+--- 192.168.123.2 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 32.719/32.719/32.719/0.000 ms
+```
+
+server log
+```
+root@i-5tb1rpqn:~/tmp# ./main server -d ./config/
+INFO[0000] run web server on port 8000                  
+WARN[0108] wrong passwd for user shawn                  
+INFO[0129] client 222.209.208.189:53499 login to shawn succeed 
+INFO[0129] client 222.209.208.189:53499 auth succeed    
+INFO[0299] client 222.209.208.189:40817 login to guest succeed 
+INFO[0299] client 222.209.208.189:40817 auth succeed
+```
