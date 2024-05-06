@@ -104,8 +104,8 @@ server log
 root@i-5tb1rpqn:~/tmp# ./main server -d ./config/
 INFO[0000] run web server on port 8000                  
 WARN[0108] wrong passwd for user shawn                  
-INFO[0129] client 222.209.208.189:53499 login to shawn succeed 
-INFO[0129] client 222.209.208.189:53499 auth succeed    
-INFO[0299] client 222.209.208.189:40817 login to guest succeed 
-INFO[0299] client 222.209.208.189:40817 auth succeed
+INFO[0129] client <remote address of endpoint>:53499 login to shawn succeed 
+INFO[0129] client <remote address of endpoint>:53499 auth succeed    
+INFO[0299] client <remote address of endpoint>:40817 login to guest succeed 
+INFO[0299] client <remote address of endpoint>:40817 auth succeed
 ```
