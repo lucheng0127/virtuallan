@@ -45,8 +45,12 @@ func (svc *webServe) Serve() {
 	gin.DefaultWriter = io.Discard
 
 	router := gin.Default()
+	router.LoadHTMLFiles("./static/index.html")
 
 	router.GET("/endpoints", listEpEntries)
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
 
 	router.Run(fmt.Sprintf(":%d", svc.port))
 }
