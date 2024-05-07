@@ -27,6 +27,14 @@ go build -o virtuallan main.go
 
 go generate will generate an random aes key
 
+## Use with docker
+
+**Build**
+>IMG=\<your image name>:\<tag> make build-docker
+
+**Run docker image as server**
+>docker run --privileged=true -d --restart always -p 6123:6123/udp -p 8000:8000 quay.io/shawnlu0127/virtuallan:20240507
+
 ## Getting started
 
 **Server**
@@ -88,6 +96,7 @@ OPTIONS:
 ### Try it out
 
 If enable web, it will start a http server on port 8000. Check the endpoints in index page.
+
 ![monitor](./docs/statics/endpoints.png)
 
 Links of virtuallan server
