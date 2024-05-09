@@ -109,8 +109,18 @@ func (svc *Server) ListenAndServe() error {
 			continue
 		}
 
+		// For wrong AES key, will return pkt to nill or unsupported pkt error, just skip
 		pkt, err := packet.Decode(buf[:n])
+		if pkt == nil {
+			continue
+		}
+
 		if err != nil {
+			if utils.IsUnsupportedPkt(err) {
+				log.Warn(err)
+				continue
+			}
+
 			log.Error("parse packet ", err)
 		}
 

@@ -29,6 +29,12 @@ func (ac *AESCipher) PKCS7Padding(data []byte) []byte {
 func (ac *AESCipher) PKCS7Unpadding(data []byte) []byte {
 	dataLen := len(data)
 	unpaddingLen := int(data[dataLen-1])
+
+	if dataLen < unpaddingLen {
+		// For wrong AES key, it can't parse correct, so if dataLen < unpaddingLen, return nothing
+		return make([]byte, 0)
+	}
+
 	return data[:(dataLen - unpaddingLen)]
 }
 
