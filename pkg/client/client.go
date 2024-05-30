@@ -69,7 +69,7 @@ func Run(cCtx *cli.Context) error {
 	// Handle udp packet
 	go func() {
 		for {
-			var buf [1520]byte
+			var buf [65535]byte
 			n, _, err := conn.ReadFromUDP(buf[:])
 
 			if err != nil {
