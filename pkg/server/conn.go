@@ -64,7 +64,7 @@ func (client *UClient) Handle() {
 	}()
 
 	for {
-		var buf [1500]byte
+		var buf [65535]byte
 
 		n, err := client.Iface.Read(buf[:])
 		if err != nil {

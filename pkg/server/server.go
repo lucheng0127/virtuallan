@@ -99,7 +99,7 @@ func (svc *Server) ListenAndServe() error {
 		// Max vlpkt len 1502 = 1500(max ethernet pkt) + 2(vlheader)
 		// for encrypted data len should be n*16(aes block size) + 16(key len)
 		// so buf len should be 94 * 16 + 16 = 1520
-		var buf [1520]byte
+		var buf [65535]byte
 		n, addr, err := ln.ReadFromUDP(buf[:])
 		if err != nil {
 			return err
