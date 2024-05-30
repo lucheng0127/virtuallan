@@ -33,7 +33,7 @@ func HandleConn(iface *water.Interface, netToIface chan *packet.VLPkt, conn *net
 	}()
 
 	for {
-		var buf [1500]byte
+		var buf [65535]byte
 
 		n, err := iface.Read(buf[:])
 		if err != nil {
