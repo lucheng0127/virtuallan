@@ -124,6 +124,7 @@ func (svc *Server) ListenAndServe() error {
 			log.Error("parse packet ", err)
 		}
 
+		// TODO(shawnlu): Add close conn
 		switch pkt.Type {
 		case packet.P_AUTH:
 			u, p := pkt.VLBody.(*packet.AuthBody).Parse()
@@ -199,6 +200,7 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 	svc.Teardown()
 }
 
+// TODO(shawnlu): Add dhcp
 func Run(cCtx *cli.Context) error {
 	svc := new(Server)
 

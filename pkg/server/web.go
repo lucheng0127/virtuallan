@@ -21,6 +21,7 @@ type EpEntry struct {
 }
 
 func listEpEntries(c *gin.Context) {
+	// TODO(shawnlu): Add pkt count and login time
 	var data []*EpEntry
 
 	for user, addr := range users.UserEPMap {

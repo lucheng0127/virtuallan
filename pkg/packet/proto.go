@@ -15,6 +15,7 @@ const (
 	P_AUTH      uint16 = 0x1b00 | (0x01 << 1)
 	P_RAW       uint16 = 0x1b00 | (0x01 << 2)
 	P_RESPONSE  uint16 = 0x1b00 | (0x01 << 3)
+	// TODO(shawnlu): Add close pkt
 
 	RSP_AUTH_REQUIRED uint16 = 0x01
 	RSP_AUTH_SUCCEED  uint16 = 0x01 << 1
