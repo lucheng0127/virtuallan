@@ -19,6 +19,7 @@ type UClient struct {
 	Once       sync.Once
 	User       string
 	IP         string
+	Login      string
 }
 
 var UPool map[string]*UClient

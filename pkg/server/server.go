@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
@@ -71,6 +72,7 @@ func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*U
 	client.RAddr = addr
 	client.Conn = conn
 	client.NetToIface = make(chan *packet.VLPkt, 1024)
+	client.Login = time.Now().Format("2006-01-02 15:04:05")
 	client.Once = sync.Once{}
 	UPool[addr.String()] = client
 	return client, nil

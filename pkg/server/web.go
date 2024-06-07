@@ -18,10 +18,11 @@ type EpEntry struct {
 	Addr  string
 	Iface string
 	IP    string
+	Login string
 }
 
 func listEpEntries(c *gin.Context) {
-	// TODO(shawnlu): Add pkt count and login time
+	// TODO(shawnlu): Add pkt count
 	var data []*EpEntry
 
 	for user, addr := range users.UserEPMap {
@@ -35,6 +36,7 @@ func listEpEntries(c *gin.Context) {
 			Addr:  addr,
 			Iface: c.Iface.Name(),
 			IP:    c.IP,
+			Login: c.Login,
 		})
 	}
 
