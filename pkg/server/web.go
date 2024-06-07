@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lucheng0127/virtuallan/pkg/users"
+	"github.com/lucheng0127/virtuallan/pkg/utils"
 )
 
 type webServe struct {
@@ -14,29 +15,43 @@ type webServe struct {
 }
 
 type EpEntry struct {
-	User  string
-	Addr  string
-	Iface string
-	IP    string
-	Login string
+	User   string
+	Addr   string
+	Iface  string
+	IP     string
+	TX_PKT uint64
+	RX_PKT uint64
+	TX     string
+	RX     string
+	Login  string
 }
 
 func listEpEntries(c *gin.Context) {
-	// TODO(shawnlu): Add pkt count
+	// Add pkt count
 	var data []*EpEntry
 
+	// Get all link stats
+	linkStats := utils.GetLinkStats()
+
+	// Format endpoint stats data
 	for user, addr := range users.UserEPMap {
 		c, ok := UPool[addr]
 		if !ok {
 			continue
 		}
 
+		rxPkt, txPkt, rx, tx := utils.GetLinkStatsByName(c.Iface.Name(), linkStats)
+
 		data = append(data, &EpEntry{
-			User:  user,
-			Addr:  addr,
-			Iface: c.Iface.Name(),
-			IP:    c.IP.String(),
-			Login: c.Login,
+			User:   user,
+			Addr:   addr,
+			Iface:  c.Iface.Name(),
+			IP:     c.IP.String(),
+			Login:  c.Login,
+			RX_PKT: rxPkt,
+			RX:     rx,
+			TX_PKT: txPkt,
+			TX:     tx,
 		})
 	}
 

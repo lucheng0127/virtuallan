@@ -9,6 +9,14 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+type LinkMessages struct {
+	InterfaceName string
+	RX_SIZE       string
+	TX_SIZE       string
+	RX_PKT        uint64
+	TX_PKT        uint64
+}
+
 func RandStr(n int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -121,4 +129,40 @@ func DelLinkByName(name string) error {
 	}
 
 	return netlink.LinkDel(ln)
+}
+
+func GetLinkStats() []LinkMessages {
+	// Get all link stats
+	var linkMesages []LinkMessages
+
+	links, err := netlink.LinkList()
+	if err != nil {
+		return linkMesages
+	}
+
+	for _, link := range links {
+		stats := link.Attrs().Statistics
+
+		LinkMessage := LinkMessages{
+			InterfaceName: link.Attrs().Name,
+			RX_PKT:        stats.RxPackets,
+			TX_PKT:        stats.TxPackets,
+			RX_SIZE:       ConvertBytes(stats.RxBytes),
+			TX_SIZE:       ConvertBytes(stats.TxBytes),
+		}
+
+		linkMesages = append(linkMesages, LinkMessage)
+	}
+
+	return linkMesages
+}
+
+func GetLinkStatsByName(name string, linkMsg []LinkMessages) (uint64, uint64, string, string) {
+	for _, msg := range linkMsg {
+		if msg.InterfaceName == name {
+			return msg.RX_PKT, msg.TX_PKT, msg.RX_SIZE, msg.TX_SIZE
+		}
+	}
+
+	return 0, 0, "", ""
 }
