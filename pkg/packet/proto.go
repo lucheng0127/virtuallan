@@ -15,7 +15,7 @@ const (
 	P_AUTH      uint16 = 0x1b00 | (0x01 << 1)
 	P_RAW       uint16 = 0x1b00 | (0x01 << 2)
 	P_RESPONSE  uint16 = 0x1b00 | (0x01 << 3)
-	P_FIN       uint16 = 0x1b00 | (0x01 << 4)
+	// TODO(shawnlu): Add close pkt
 
 	RSP_AUTH_REQUIRED uint16 = 0x01
 	RSP_AUTH_SUCCEED  uint16 = 0x01 << 1
@@ -118,18 +118,6 @@ func Decode(encStream []byte) (*VLPkt, error) {
 		}
 
 		pkt.VLHeader.Type = P_KEEPALIVE
-		pkt.VLBody = b
-
-		return pkt, nil
-	case P_FIN:
-		b := new(KeepaliveBody)
-
-		err := b.Decode(stream[2:])
-		if err != nil {
-			return nil, err
-		}
-
-		pkt.VLHeader.Type = P_FIN
 		pkt.VLBody = b
 
 		return pkt, nil
