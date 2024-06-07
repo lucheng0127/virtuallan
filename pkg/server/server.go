@@ -126,7 +126,6 @@ func (svc *Server) ListenAndServe() error {
 			log.Error("parse packet ", err)
 		}
 
-		// TODO(shawnlu): Add close conn
 		switch pkt.Type {
 		case packet.P_AUTH:
 			u, p := pkt.VLBody.(*packet.AuthBody).Parse()
@@ -180,10 +179,22 @@ func (svc *Server) ListenAndServe() error {
 			go client.HandleOnce()
 
 			client.NetToIface <- pkt
+		case packet.P_FIN:
+			svc.CloseConn(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String())
 		default:
 			log.Debug("unknow stream, do nothing")
 			continue
 		}
+	}
+}
+
+func (svc *Server) CloseConn(ip, raddr string) {
+	log.Infof("fin pkt received from %s for %s\n", raddr, ip)
+
+	ep, ok := EPMap[ip]
+	if ok {
+		ep.Close()
+		log.Info("conn closed", raddr)
 	}
 }
 
