@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
@@ -26,6 +25,7 @@ type Server struct {
 	UsedIP  []int
 	IPStart net.IP
 	IPCount int
+	MLock   sync.Mutex
 }
 
 func (svc *Server) SetupLan() error {
@@ -48,38 +48,6 @@ func (svc *Server) SetupLan() error {
 	return nil
 }
 
-func (svc *Server) SendResponse(conn *net.UDPConn, code uint16, raddr *net.UDPAddr) {
-	pkt := packet.NewResponsePkt(code)
-
-	stream, err := pkt.Encode()
-	if err != nil {
-		log.Errorf("encode response packet %s", err.Error())
-		return
-	}
-
-	_, err = conn.WriteToUDP(stream, raddr)
-	if err != nil {
-		log.Errorf("send udp stream to %s %s\n", raddr.String(), err.Error())
-		os.Exit(1)
-	}
-}
-
-func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
-	iface, err := utils.NewTap(svc.Bridge)
-	if err != nil {
-		return nil, err
-	}
-
-	client := new(UClient)
-	client.Iface = iface
-	client.RAddr = addr
-	client.Conn = conn
-	client.NetToIface = make(chan *packet.VLPkt, 1024)
-	client.Login = time.Now().Format("2006-01-02 15:04:05")
-	client.Once = sync.Once{}
-	UPool[addr.String()] = client
-	return client, nil
-}
 func (svc *Server) ListenAndServe() error {
 	if !utils.ValidatePort(svc.Port) {
 		return fmt.Errorf("invalidate port %d", svc.Port)
@@ -201,22 +169,12 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 	svc.Teardown()
 }
 
-func (svc *Server) ParseDHCPRange() error {
-	ipStart, ipCount := utils.ValidateDHCPRange(svc.ServerConfig.DHCPRange)
-	if ipCount == 0 {
-		return fmt.Errorf("invalidate dhcp range %s, <ip start>-<ip end>", svc.ServerConfig.DHCPRange)
-	}
-
-	svc.IPStart = ipStart
-	svc.IPCount = ipCount
-	return nil
-}
-
 // TODO(shawnlu): Add dhcp
 func Run(cCtx *cli.Context) error {
 	// New server and do cfg parse
 	svc := new(Server)
 	svc.UsedIP = make([]int, 0)
+	svc.MLock = sync.Mutex{}
 
 	cfgDir := cCtx.String("config-dir")
 	cfg, err := config.LoadConfigFile(config.GetCfgPath(cfgDir))

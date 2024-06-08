@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
@@ -91,4 +92,37 @@ func (client *UClient) Handle() {
 
 EXIT:
 	return
+}
+
+func (svc *Server) SendResponse(conn *net.UDPConn, code uint16, raddr *net.UDPAddr) {
+	pkt := packet.NewResponsePkt(code)
+
+	stream, err := pkt.Encode()
+	if err != nil {
+		log.Errorf("encode response packet %s", err.Error())
+		return
+	}
+
+	_, err = conn.WriteToUDP(stream, raddr)
+	if err != nil {
+		log.Errorf("send udp stream to %s %s\n", raddr.String(), err.Error())
+		os.Exit(1)
+	}
+}
+
+func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
+	iface, err := utils.NewTap(svc.Bridge)
+	if err != nil {
+		return nil, err
+	}
+
+	client := new(UClient)
+	client.Iface = iface
+	client.RAddr = addr
+	client.Conn = conn
+	client.NetToIface = make(chan *packet.VLPkt, 1024)
+	client.Login = time.Now().Format("2006-01-02 15:04:05")
+	client.Once = sync.Once{}
+	UPool[addr.String()] = client
+	return client, nil
 }
