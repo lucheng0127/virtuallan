@@ -22,6 +22,7 @@ type ServerConfig struct {
 	IP        string `yaml:"ip"`
 	Bridge    string `yaml:"bridge"`
 	LogLevel  string `yaml:"log-level"`
+	DHCPRange string `yaml:"dhcp-range"`
 	WebConfig `yaml:"web"`
 }
 

@@ -22,7 +22,10 @@ import (
 
 type Server struct {
 	*config.ServerConfig
-	userDb string
+	userDb  string
+	UsedIP  []int
+	IPStart net.IP
+	IPCount int
 }
 
 func (svc *Server) SetupLan() error {
@@ -92,10 +95,6 @@ func (svc *Server) ListenAndServe() error {
 		return err
 	}
 	defer ln.Close()
-
-	if err = svc.SetupLan(); err != nil {
-		return err
-	}
 
 	for {
 		// Max vlpkt len 1502 = 1500(max ethernet pkt) + 2(vlheader)
@@ -202,9 +201,22 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 	svc.Teardown()
 }
 
+func (svc *Server) ParseDHCPRange() error {
+	ipStart, ipCount := utils.ValidateDHCPRange(svc.ServerConfig.DHCPRange)
+	if ipCount == 0 {
+		return fmt.Errorf("invalidate dhcp range %s, <ip start>-<ip end>", svc.ServerConfig.DHCPRange)
+	}
+
+	svc.IPStart = ipStart
+	svc.IPCount = ipCount
+	return nil
+}
+
 // TODO(shawnlu): Add dhcp
 func Run(cCtx *cli.Context) error {
+	// New server and do cfg parse
 	svc := new(Server)
+	svc.UsedIP = make([]int, 0)
 
 	cfgDir := cCtx.String("config-dir")
 	cfg, err := config.LoadConfigFile(config.GetCfgPath(cfgDir))
@@ -226,6 +238,14 @@ func Run(cCtx *cli.Context) error {
 		log.SetLevel(log.InfoLevel)
 	}
 
+	if !utils.ValidateIPv4WithNetmask(svc.ServerConfig.IP) {
+		return fmt.Errorf("invalidate ip %s, <ip>/<netmask len>", svc.ServerConfig.IP)
+	}
+
+	if err := svc.ParseDHCPRange(); err != nil {
+		return err
+	}
+
 	// Run web server
 	if svc.ServerConfig.WebConfig.Enable {
 		webSvc := &webServe{port: svc.ServerConfig.WebConfig.Port}
@@ -238,5 +258,11 @@ func Run(cCtx *cli.Context) error {
 	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)
 	go svc.HandleSignal(sigChan)
 
+	// Setup local bridge
+	if err := svc.SetupLan(); err != nil {
+		return err
+	}
+
+	// Launch udp server
 	return svc.ListenAndServe()
 }
