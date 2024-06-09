@@ -8,6 +8,9 @@ import (
 	"os"
 )
 
+// Logged users
+// Key: username
+// Value: remote address string
 var UserEPMap map[string]string
 
 func init() {

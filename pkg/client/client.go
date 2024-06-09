@@ -61,7 +61,7 @@ func Run(cCtx *cli.Context) error {
 	}
 
 	// Do auth
-	ipAddr := cCtx.String("addr")
+	ipChan := make(chan string)
 	netToIface := make(chan *packet.VLPkt, 1024)
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -93,8 +93,8 @@ func Run(cCtx *cli.Context) error {
 				case packet.RSP_AUTH_REQUIRED:
 					log.Error("auth failed")
 					os.Exit(1)
-				case packet.RSP_IP_CONFLICET:
-					log.Error("conflicet ip ", ipAddr)
+				case packet.RSP_IP_NOT_MATCH:
+					log.Error("ip not match")
 					os.Exit(1)
 				case packet.RSP_USER_LOGGED:
 					log.Error("user already logged by other endpoint")
@@ -104,6 +104,9 @@ func Run(cCtx *cli.Context) error {
 				}
 			case packet.P_RAW:
 				netToIface <- pkt
+			case packet.P_DHCP:
+				ipAddr := pkt.VLBody.(*packet.KeepaliveBody).Parse()
+				ipChan <- ipAddr
 			default:
 				log.Debug("unknow stream, do nothing")
 				continue
@@ -111,6 +114,7 @@ func Run(cCtx *cli.Context) error {
 		}
 	}()
 
+	// Auth
 	authPkt := packet.NewAuthPkt(user, passwd)
 	authStream, err := authPkt.Encode()
 	if err != nil {
@@ -124,6 +128,9 @@ func Run(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
+	// Waiting for dhcp ip
+	ipAddr := <-ipChan
+
 	iface, err := utils.NewTap("")
 	if err != nil {
 		return err
@@ -136,7 +143,7 @@ func Run(cCtx *cli.Context) error {
 	// TODO(shawnlu): Add handle signal to close conn
 
 	// Send keepalive
-	go DoKeepalive(conn, strings.Split(ipAddr, "/")[0], 10)
+	go DoKeepalive(conn, ipAddr, 10)
 
 	// Switch io between udp net and tap interface
 	go HandleConn(iface, netToIface, conn)

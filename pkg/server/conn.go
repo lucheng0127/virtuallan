@@ -1,11 +1,15 @@
 package server
 
 import (
+	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
+	"github.com/lucheng0127/virtuallan/pkg/users"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/songgao/water"
@@ -18,8 +22,10 @@ type UClient struct {
 	NetToIface chan *packet.VLPkt
 	Once       sync.Once
 	User       string
-	IP         string
+	IP         net.IP
 	Login      string
+	Beat       chan string
+	Svc        *Server
 }
 
 var UPool map[string]*UClient
@@ -39,7 +45,22 @@ func (client *UClient) Close() {
 		log.Error(err)
 	}
 
+	client.Svc.ReleaseIP(client.IP)
+	delete(users.UserEPMap, client.User)
 	delete(UPool, client.RAddr.String())
+}
+
+func (client *UClient) Countdown() {
+	for {
+		select {
+		case <-client.Beat:
+			continue
+		case <-time.After(50 * time.Second):
+			log.Infof("endpoint %s with raddr %s don't get keepalive pkt for long time, close it\n", client.IP, client.RAddr.String())
+			client.Close()
+			return
+		}
+	}
 }
 
 func (client *UClient) Handle() {
@@ -91,4 +112,190 @@ func (client *UClient) Handle() {
 
 EXIT:
 	return
+}
+
+func (svc *Server) SendResponse(conn *net.UDPConn, code uint16, raddr *net.UDPAddr) {
+	pkt := packet.NewResponsePkt(code)
+
+	stream, err := pkt.Encode()
+	if err != nil {
+		log.Errorf("encode response packet %s", err.Error())
+		return
+	}
+
+	_, err = conn.WriteToUDP(stream, raddr)
+	if err != nil {
+		log.Errorf("send udp stream to %s %s\n", raddr.String(), err.Error())
+		os.Exit(1)
+	}
+}
+
+func (svc *Server) OfferIPToClient(conn *net.UDPConn, ip string, raddr *net.UDPAddr) error {
+	masklen := strings.Split(svc.IP, "/")[1]
+	ipAddr := fmt.Sprintf("%s/%s", ip, masklen)
+
+	pkt, err := packet.NewDhcpPkt(ipAddr)
+	if err != nil {
+		return err
+	}
+
+	stream, err := pkt.Encode()
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.WriteToUDP(stream, raddr)
+	if err != nil {
+		log.Errorf("send udp stream to %s %s\n", raddr.String(), err.Error())
+		os.Exit(1)
+	}
+
+	return nil
+}
+
+func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
+	iface, err := utils.NewTap(svc.Bridge)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pop a ip for client
+	ip, err := svc.PopIPFromPool()
+	if err != nil {
+		return nil, err
+	}
+
+	client := new(UClient)
+	client.Iface = iface
+	client.RAddr = addr
+	client.Conn = conn
+	client.NetToIface = make(chan *packet.VLPkt, 1024)
+	client.Login = time.Now().Format("2006-01-02 15:04:05")
+	client.Once = sync.Once{}
+	client.Beat = make(chan string)
+	client.Svc = svc
+	client.IP = ip
+
+	UPool[addr.String()] = client
+
+	// Monitor client heartbeat
+	go client.Countdown()
+
+	return client, nil
+}
+
+func (svc *Server) ListenAndServe() error {
+	if !utils.ValidatePort(svc.Port) {
+		return fmt.Errorf("invalidate port %d", svc.Port)
+	}
+
+	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("0.0.0.0:%d", svc.Port))
+	if err != nil {
+		return err
+	}
+
+	ln, err := net.ListenUDP("udp4", addr)
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+
+	for {
+		// Max vlpkt len 1502 = 1500(max ethernet pkt) + 2(vlheader)
+		// for encrypted data len should be n*16(aes block size) + 16(key len)
+		// so buf len should be 94 * 16 + 16 = 1520
+		var buf [65535]byte
+		n, addr, err := ln.ReadFromUDP(buf[:])
+		if err != nil {
+			return err
+		}
+
+		if n < 2 {
+			continue
+		}
+
+		// For wrong AES key, will return pkt to nill or unsupported pkt error, just skip
+		pkt, err := packet.Decode(buf[:n])
+		if pkt == nil {
+			continue
+		}
+
+		if err != nil {
+			if utils.IsUnsupportedPkt(err) {
+				log.Warn(err)
+				continue
+			}
+
+			log.Error("parse packet ", err)
+		}
+
+		// TODO(shawnlu): Add close conn
+		switch pkt.Type {
+		case packet.P_AUTH:
+			u, p := pkt.VLBody.(*packet.AuthBody).Parse()
+
+			// Check user logged
+			if _, ok := users.UserEPMap[u]; ok {
+				svc.SendResponse(ln, packet.RSP_USER_LOGGED, addr)
+				continue
+			}
+
+			// Auth user
+			err = users.ValidateUser(svc.userDb, u, p)
+
+			if err != nil {
+				log.Warn(err)
+				svc.SendResponse(ln, packet.RSP_AUTH_REQUIRED, addr)
+				continue
+			}
+
+			users.UserEPMap[u] = addr.String()
+			log.Infof("client %s login to %s succeed\n", addr.String(), u)
+
+			// Create client for authed addr
+			client, err := svc.CreateClientForAddr(addr, ln)
+			if err != nil {
+				log.Errorf("create authed client %s\n", err.Error())
+				svc.SendResponse(ln, packet.RSP_INTERNAL_ERR, addr)
+				continue
+			}
+			client.User = u
+
+			// Offer IP to client
+			err = svc.OfferIPToClient(ln, client.IP.String(), addr)
+			if err != nil {
+				log.Errorf("send dhcp for client %s with ip %s failed: %s", addr.String(), client.IP.String(), err.Error())
+				svc.SendResponse(ln, packet.RSP_INTERNAL_ERR, addr)
+				continue
+			}
+
+			log.Infof("client %s auth succeed", addr.String())
+		case packet.P_KEEPALIVE:
+			// Handle keepalive
+			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String(), svc)
+
+			if err != nil {
+				if utils.IsUnauthedErr(err) {
+					continue
+				}
+
+				svc.SendResponse(ln, packet.RSP_IP_NOT_MATCH, addr)
+				log.Warnf("heartbeat from %s %s, send ip not match response", addr.String(), err.Error())
+			}
+		case packet.P_RAW:
+			// Get authed client from UPool
+			client, ok := UPool[addr.String()]
+			if !ok {
+				svc.SendResponse(ln, packet.RSP_AUTH_REQUIRED, addr)
+				continue
+			}
+
+			go client.HandleOnce()
+
+			client.NetToIface <- pkt
+		default:
+			log.Debug("unknow stream, do nothing")
+			continue
+		}
+	}
 }

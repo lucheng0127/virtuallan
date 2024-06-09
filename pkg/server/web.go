@@ -35,7 +35,7 @@ func listEpEntries(c *gin.Context) {
 			User:  user,
 			Addr:  addr,
 			Iface: c.Iface.Name(),
-			IP:    c.IP,
+			IP:    c.IP.String(),
 			Login: c.Login,
 		})
 	}
