@@ -13,3 +13,7 @@ func IsUnauthedErr(err error) bool {
 func IsUnsupportedPkt(err error) bool {
 	return strings.Contains(err.Error(), "unsupported vl pkt")
 }
+
+func IsRunOutOfIP(err error) bool {
+	return strings.Contains(err.Error(), "run out of ip")
+}

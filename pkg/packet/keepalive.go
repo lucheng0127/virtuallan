@@ -40,7 +40,7 @@ func (body *KeepaliveBody) Decode(stream []byte) error {
 }
 
 func NewKeepaliveBody(addr string) (*KeepaliveBody, error) {
-	if !utils.ValidateIPv4Addr(addr) {
+	if !utils.ValidateIPv4WithNetmask(addr) {
 		return nil, fmt.Errorf("invalidate ipv4 address %s", addr)
 	}
 
@@ -48,7 +48,7 @@ func NewKeepaliveBody(addr string) (*KeepaliveBody, error) {
 	body.IP = []byte(addr)
 	body.Len = uint16(len(body.IP))
 
-	noiseLen := MINI_LEN - 2 - body.Len
+	noiseLen := MINI_LEN - 2 - int(body.Len)
 	if noiseLen > 0 {
 		body.Noise = make([]byte, noiseLen)
 	} else {

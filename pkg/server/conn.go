@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -129,8 +130,37 @@ func (svc *Server) SendResponse(conn *net.UDPConn, code uint16, raddr *net.UDPAd
 	}
 }
 
+func (svc *Server) OfferIPToClient(conn *net.UDPConn, ip string, raddr *net.UDPAddr) error {
+	masklen := strings.Split(svc.IP, "/")[1]
+	ipAddr := fmt.Sprintf("%s/%s", ip, masklen)
+
+	pkt, err := packet.NewDhcpPkt(ipAddr)
+	if err != nil {
+		return err
+	}
+
+	stream, err := pkt.Encode()
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.WriteToUDP(stream, raddr)
+	if err != nil {
+		log.Errorf("send udp stream to %s %s\n", raddr.String(), err.Error())
+		os.Exit(1)
+	}
+
+	return nil
+}
+
 func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
 	iface, err := utils.NewTap(svc.Bridge)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pop a ip for client
+	ip, err := svc.PopIPFromPool()
 	if err != nil {
 		return nil, err
 	}
@@ -144,8 +174,12 @@ func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*U
 	client.Once = sync.Once{}
 	client.Beat = make(chan string)
 	client.Svc = svc
+	client.IP = ip
 
 	UPool[addr.String()] = client
+
+	// Monitor client heartbeat
+	go client.Countdown()
 
 	return client, nil
 }
@@ -222,8 +256,18 @@ func (svc *Server) ListenAndServe() error {
 			client, err := svc.CreateClientForAddr(addr, ln)
 			if err != nil {
 				log.Errorf("create authed client %s\n", err.Error())
+				svc.SendResponse(ln, packet.RSP_INTERNAL_ERR, addr)
+				continue
 			}
 			client.User = u
+
+			// Offer IP to client
+			err = svc.OfferIPToClient(ln, client.IP.String(), addr)
+			if err != nil {
+				log.Errorf("send dhcp for client %s with ip %s failed: %s", addr.String(), client.IP.String(), err.Error())
+				svc.SendResponse(ln, packet.RSP_INTERNAL_ERR, addr)
+				continue
+			}
 
 			log.Infof("client %s auth succeed", addr.String())
 		case packet.P_KEEPALIVE:
@@ -235,8 +279,8 @@ func (svc *Server) ListenAndServe() error {
 					continue
 				}
 
-				svc.SendResponse(ln, packet.RSP_IP_CONFLICET, addr)
-				log.Warnf("heartbeat from %s %s, send ip conflicet response", addr.String(), err.Error())
+				svc.SendResponse(ln, packet.RSP_IP_NOT_MATCH, addr)
+				log.Warnf("heartbeat from %s %s, send ip not match response", addr.String(), err.Error())
 			}
 		case packet.P_RAW:
 			// Get authed client from UPool

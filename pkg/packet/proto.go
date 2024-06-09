@@ -15,12 +15,14 @@ const (
 	P_AUTH      uint16 = 0x1b00 | (0x01 << 1)
 	P_RAW       uint16 = 0x1b00 | (0x01 << 2)
 	P_RESPONSE  uint16 = 0x1b00 | (0x01 << 3)
+	P_DHCP      uint16 = 0x1b00 | (0x01 << 4)
 	// TODO(shawnlu): Add close pkt
 
 	RSP_AUTH_REQUIRED uint16 = 0x01
 	RSP_AUTH_SUCCEED  uint16 = 0x01 << 1
-	RSP_IP_CONFLICET  uint16 = 0x01 << 2
+	RSP_IP_NOT_MATCH  uint16 = 0x01 << 2
 	RSP_USER_LOGGED   uint16 = 0x01 << 3
+	RSP_INTERNAL_ERR  uint16 = 0x01 << 4
 )
 
 type VLHeader struct {
@@ -130,6 +132,16 @@ func Decode(encStream []byte) (*VLPkt, error) {
 		}
 
 		pkt.VLHeader.Type = P_RESPONSE
+		pkt.VLBody = b
+	case P_DHCP:
+		b := new(KeepaliveBody)
+
+		err := b.Decode(stream[2:])
+		if err != nil {
+			return nil, err
+		}
+
+		pkt.VLHeader.Type = P_DHCP
 		pkt.VLBody = b
 	default:
 		return nil, errors.New("unsupported vl pkt")
