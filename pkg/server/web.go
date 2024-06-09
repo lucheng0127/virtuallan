@@ -11,7 +11,6 @@ import (
 
 type webServe struct {
 	port int
-	svc  *Server
 }
 
 type EpEntry struct {
