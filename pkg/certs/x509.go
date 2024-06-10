@@ -9,6 +9,8 @@ import (
 	"math/big"
 )
 
+// TODO: Encrpyt packet with certs
+
 func NewClientTlsConf() *tls.Config {
 	return &tls.Config{
 		InsecureSkipVerify: true,

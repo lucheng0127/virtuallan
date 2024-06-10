@@ -181,8 +181,6 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
-	// TODO(shawnlu): Add handle signal to close conn
-
 	// Send keepalive
 	go DoKeepalive(conn, ipAddr, 10)
 
