@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
@@ -33,6 +34,16 @@ func GetLoginInfo() (string, string, error) {
 	passwd := string(bytePasswd)
 
 	return strings.TrimSpace(user), strings.TrimSpace(passwd), nil
+}
+
+func checkLoginTimeout(c chan string) {
+	select {
+	case <-c:
+		return
+	case <-time.After(10 * time.Second):
+		log.Error("login timeout")
+		os.Exit(1)
+	}
 }
 
 func Run(cCtx *cli.Context) error {
@@ -128,8 +139,13 @@ func Run(cCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
+	authChan := make(chan string, 1)
+	go checkLoginTimeout(authChan)
+
 	// Waiting for dhcp ip
 	ipAddr := <-ipChan
+	authChan <- "ok"
+	log.Infof("auth with %s succeed, endpoint ip %s\n", user, ipAddr)
 
 	iface, err := utils.NewTap("")
 	if err != nil {
