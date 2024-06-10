@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"net"
 
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
@@ -18,11 +19,36 @@ func RandStr(n int) string {
 	return string(b)
 }
 
-// XXX: When create tap interface, the mac address will change
+func GetMacFromIP(ip net.IP) net.HardwareAddr {
+	ip = ip.To4()
+	return net.HardwareAddr{0x60, 0xe2, ip[0], ip[1], ip[2], ip[3]}
+}
+
+// When create tap interface, the mac address will change
 // when a endpoint close then reconnect to it, if there is another
 // endpoint try to access this endpoint, the ip neigh entry is
 // still the old, it must waiting for the ip neigh entry staled
 // maybe we can generate mac address according the ip address
+func SetMacToTap(name, ip string) error {
+	ipv4 := net.ParseIP(ip).To4()
+	if ipv4 == nil {
+		return fmt.Errorf("not validate ipv4 address %s", ip)
+	}
+
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return err
+	}
+
+	mac := GetMacFromIP(ipv4)
+
+	if err := netlink.LinkSetHardwareAddr(link, mac); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewTap(br string) (*water.Interface, error) {
 	config := new(water.Config)
 	config.DeviceType = water.TAP
@@ -33,6 +59,7 @@ func NewTap(br string) (*water.Interface, error) {
 		return nil, err
 	}
 
+	// Add into bridge if needed
 	if br == "" {
 		return iface, nil
 	}
