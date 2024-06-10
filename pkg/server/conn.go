@@ -25,6 +25,7 @@ type UClient struct {
 	IP         net.IP
 	Login      string
 	Beat       chan string
+	CloseChan  chan string
 	Svc        *Server
 }
 
@@ -48,11 +49,16 @@ func (client *UClient) Close() {
 	client.Svc.ReleaseIP(client.IP)
 	delete(users.UserEPMap, client.User)
 	delete(UPool, client.RAddr.String())
+
+	client.CloseChan <- "FIN"
 }
 
 func (client *UClient) Countdown() {
 	for {
 		select {
+		case <-client.CloseChan:
+			log.Info("stop heartbeat monitor ", client.RAddr.String())
+			return
 		case <-client.Beat:
 			continue
 		case <-time.After(50 * time.Second):
@@ -90,7 +96,12 @@ func (client *UClient) Handle() {
 
 		n, err := client.Iface.Read(buf[:])
 		if err != nil {
-			log.Errorf("read from tap %s %s\n", client.Iface.Name(), err.Error())
+			if utils.IsTapNotExist(err) {
+				log.Warnf("%s has been deleted", client.Iface.Name())
+			} else {
+				log.Errorf("read from tap %s %s\n", client.Iface.Name(), err.Error())
+			}
+
 			// If tap has been deleted, break it
 			goto EXIT
 		}
@@ -173,6 +184,7 @@ func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*U
 	client.Login = time.Now().Format("2006-01-02 15:04:05")
 	client.Once = sync.Once{}
 	client.Beat = make(chan string)
+	client.CloseChan = make(chan string)
 	client.Svc = svc
 	client.IP = ip
 
@@ -229,7 +241,6 @@ func (svc *Server) ListenAndServe() error {
 			log.Error("parse packet ", err)
 		}
 
-		// TODO(shawnlu): Add close conn
 		switch pkt.Type {
 		case packet.P_AUTH:
 			u, p := pkt.VLBody.(*packet.AuthBody).Parse()
@@ -293,6 +304,14 @@ func (svc *Server) ListenAndServe() error {
 			go client.HandleOnce()
 
 			client.NetToIface <- pkt
+		case packet.P_FIN:
+			client, ok := UPool[addr.String()]
+			if !ok {
+				continue
+			}
+
+			log.Info("client FIN packet received ", addr.String())
+			client.Close()
 		default:
 			log.Debug("unknow stream, do nothing")
 			continue

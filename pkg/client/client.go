@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
@@ -14,6 +15,7 @@ import (
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 )
 
@@ -46,6 +48,24 @@ func checkLoginTimeout(c chan string) {
 	}
 }
 
+func handleSignal(conn *net.UDPConn, sigChan chan os.Signal) {
+	sig := <-sigChan
+	log.Infof("received signal: %v, send fin pkt to close conn\n", sig)
+	finPkt := packet.NewFinPkt()
+
+	stream, err := finPkt.Encode()
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = conn.Write(stream)
+	if err != nil {
+		log.Error(err)
+	}
+
+	os.Exit(0)
+}
+
 func Run(cCtx *cli.Context) error {
 	var user, passwd string
 	if cCtx.String("passwd") == "" || cCtx.String("user") == "" {
@@ -70,6 +90,11 @@ func Run(cCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Handle signal
+	sigChan := make(chan os.Signal, 8)
+	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)
+	go handleSignal(conn, sigChan)
 
 	// Do auth
 	ipChan := make(chan string)
