@@ -17,3 +17,7 @@ func IsUnsupportedPkt(err error) bool {
 func IsRunOutOfIP(err error) bool {
 	return strings.Contains(err.Error(), "run out of ip")
 }
+
+func IsTapNotExist(err error) bool {
+	return strings.Contains(err.Error(), "file descriptor in bad state")
+}

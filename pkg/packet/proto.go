@@ -16,7 +16,7 @@ const (
 	P_RAW       uint16 = 0x1b00 | (0x01 << 2)
 	P_RESPONSE  uint16 = 0x1b00 | (0x01 << 3)
 	P_DHCP      uint16 = 0x1b00 | (0x01 << 4)
-	// TODO(shawnlu): Add close pkt
+	P_FIN       uint16 = 0x1b00 | 0xff
 
 	RSP_AUTH_REQUIRED uint16 = 0x01
 	RSP_AUTH_SUCCEED  uint16 = 0x01 << 1
@@ -97,8 +97,6 @@ func Decode(encStream []byte) (*VLPkt, error) {
 
 		pkt.VLHeader.Type = P_AUTH
 		pkt.VLBody = b
-
-		return pkt, nil
 	case P_RAW:
 		b := new(RawBody)
 
@@ -109,8 +107,6 @@ func Decode(encStream []byte) (*VLPkt, error) {
 
 		pkt.VLHeader.Type = P_RAW
 		pkt.VLBody = b
-
-		return pkt, nil
 	case P_KEEPALIVE:
 		b := new(KeepaliveBody)
 
@@ -121,8 +117,6 @@ func Decode(encStream []byte) (*VLPkt, error) {
 
 		pkt.VLHeader.Type = P_KEEPALIVE
 		pkt.VLBody = b
-
-		return pkt, nil
 	case P_RESPONSE:
 		b := new(RspBody)
 
@@ -143,8 +137,19 @@ func Decode(encStream []byte) (*VLPkt, error) {
 
 		pkt.VLHeader.Type = P_DHCP
 		pkt.VLBody = b
+	case P_FIN:
+		b := new(RawBody)
+
+		err := b.Decode(stream[2:])
+		if err != nil {
+			return nil, err
+		}
+
+		pkt.VLHeader.Type = P_FIN
+		pkt.VLBody = b
 	default:
 		return nil, errors.New("unsupported vl pkt")
 	}
+
 	return pkt, nil
 }

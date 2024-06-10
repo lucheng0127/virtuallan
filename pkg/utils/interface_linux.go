@@ -18,6 +18,11 @@ func RandStr(n int) string {
 	return string(b)
 }
 
+// XXX: When create tap interface, the mac address will change
+// when a endpoint close then reconnect to it, if there is another
+// endpoint try to access this endpoint, the ip neigh entry is
+// still the old, it must waiting for the ip neigh entry staled
+// maybe we can generate mac address according the ip address
 func NewTap(br string) (*water.Interface, error) {
 	config := new(water.Config)
 	config.DeviceType = water.TAP
