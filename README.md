@@ -39,7 +39,7 @@ go generate will generate an random aes key
 
 **Server**
 ```
-➜  virtuallan git:(master) ✗ ./virtuallan server -h
+➜  ~ virtuallan server -h
 NAME:
    virtuallan server - run virtuallan server
 
@@ -55,9 +55,22 @@ config dir files:
 * config.yaml: server config file
 * users: user database csv format \<username>,\<user passwd base64 encode>
 
+config.yaml
+
+```
+port: 6123                                     # UDP server port
+ip: 192.168.123.254/24                         # Server local ip address
+dhcp-range: 192.168.123.100-192.168.123.200    # DHCP ip pool
+bridge: br0                                    # Server local bridge name
+log-level: info                                # Log level
+web:
+  enable: true                                 # Monitor server enable, default false
+  port: 8000                                   # Web server port
+```
+
 **Endpoint**
 ```
-➜  virtuallan git:(master) ✗ ./virtuallan client -h
+➜  ~ virtuallan client -h
 NAME:
    virtuallan client - connect to virtuallan server
 
@@ -66,7 +79,6 @@ USAGE:
 
 OPTIONS:
    --target value, -t value  socket virtuallan server listened on
-   --addr value, -a value    ipv4 address of current endpoint
    --user value, -u value    username of virtuallan endpoint
    --passwd value, -p value  password of virtuallan endpoint user
    --help, -h                show help
@@ -101,41 +113,18 @@ If enable web, it will start a http server on port 8000. Check the endpoints in 
 
 Links of virtuallan server
 ```
-root@i-5tb1rpqn:~# ip a show br0
-3: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
-    link/ether 52:85:8d:51:1f:e0 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.123.254/24 brd 192.168.123.255 scope global br0
+Alpine-GW:~# ip a show br-vl
+120: br-vl: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 9a:6d:ae:1d:5b:47 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.138.254/24 brd 192.168.138.255 scope global br-vl
        valid_lft forever preferred_lft forever
-    inet6 fe80::b46f:44ff:fef6:f8a9/64 scope link 
+    inet6 fe80::7c46:faff:feb5:e372/64 scope link 
        valid_lft forever preferred_lft forever
-root@i-5tb1rpqn:~# ip l show master br0
-4: tap-XALX: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UNKNOWN mode DEFAULT group default qlen 1000
-    link/ether 56:f7:9f:01:b9:c6 brd ff:ff:ff:ff:ff:ff
-5: tap-wigt: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UNKNOWN mode DEFAULT group default qlen 1000
-    link/ether 62:01:07:45:89:56 brd ff:ff:ff:ff:ff:ff
-root@i-5tb1rpqn:~# ping 192.168.123.1 -c 1
-PING 192.168.123.1 (192.168.123.1) 56(84) bytes of data.
-64 bytes from 192.168.123.1: icmp_seq=1 ttl=64 time=39.5 ms
-
---- 192.168.123.1 ping statistics ---
-1 packets transmitted, 1 received, 0% packet loss, time 0ms
-rtt min/avg/max/mdev = 39.514/39.514/39.514/0.000 ms
-root@i-5tb1rpqn:~# ping 192.168.123.2 -c 1
-PING 192.168.123.2 (192.168.123.2) 56(84) bytes of data.
-64 bytes from 192.168.123.2: icmp_seq=1 ttl=64 time=32.7 ms
-
---- 192.168.123.2 ping statistics ---
-1 packets transmitted, 1 received, 0% packet loss, time 0ms
-rtt min/avg/max/mdev = 32.719/32.719/32.719/0.000 ms
-```
-
-server log
-```
-root@i-5tb1rpqn:~/tmp# ./main server -d ./config/
-INFO[0000] run web server on port 8000                  
-WARN[0108] wrong passwd for user shawn                  
-INFO[0129] client <remote address of endpoint>:53499 login to shawn succeed 
-INFO[0129] client <remote address of endpoint>:53499 auth succeed    
-INFO[0299] client <remote address of endpoint>:40817 login to guest succeed 
-INFO[0299] client <remote address of endpoint>:40817 auth succeed
+Alpine-GW:~# ip l show master br-vl
+122: tap-XudE: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast master br-vl state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 9a:6d:ae:1d:5b:47 brd ff:ff:ff:ff:ff:ff
+123: tap-mDuc: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast master br-vl state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 9e:76:5a:46:3e:37 brd ff:ff:ff:ff:ff:ff
+124: tap-NFvv: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast master br-vl state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether 5a:c1:3f:2c:2e:e8 brd ff:ff:ff:ff:ff:ff
 ```
