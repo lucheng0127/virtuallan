@@ -42,16 +42,20 @@ func listEpEntries(c *gin.Context) {
 
 		rxPkt, txPkt, rx, tx := utils.GetLinkStatsByName(c.Iface.Name(), linkStats)
 
+		// rxPkt, txPkt, rx, tx is the tap stats on server,
+		// but the tap on the endpoint just like a veth peer
+		// of the tap on server, so the tx of endpoint is the
+		// rx of server
 		data = append(data, &EpEntry{
 			User:   user,
 			Addr:   addr,
 			Iface:  c.Iface.Name(),
 			IP:     c.IP.String(),
 			Login:  c.Login,
-			RX_PKT: rxPkt,
-			RX:     rx,
-			TX_PKT: txPkt,
-			TX:     tx,
+			RX_PKT: txPkt,
+			RX:     tx,
+			TX_PKT: rxPkt,
+			TX:     rx,
 		})
 	}
 
