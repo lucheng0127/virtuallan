@@ -3,19 +3,12 @@ package main
 import (
 	"os"
 
-	vcli "github.com/lucheng0127/virtuallan/pkg/cli"
+	"github.com/lucheng0127/virtuallan/pkg/app"
 	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	app := &cli.App{
-		Commands: []*cli.Command{
-			vcli.NewServerCmd(),
-			vcli.NewClientCmd(),
-			vcli.NewUserCmd(),
-		},
-	}
+	app := app.GetApp()
 
 	if err := app.Run(os.Args); err != nil {
 		log.Panic(err)
