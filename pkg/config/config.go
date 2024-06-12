@@ -17,6 +17,7 @@ type WebConfig struct {
 	Port   int  `yaml:"port"`
 }
 
+// TODO: Add routes
 type ServerConfig struct {
 	Port      int    `yaml:"port"`
 	IP        string `yaml:"ip"`
