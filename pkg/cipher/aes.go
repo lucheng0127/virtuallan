@@ -66,7 +66,7 @@ func (ac *AESCipher) Encrypt(data []byte) ([]byte, error) {
 }
 
 func (ac *AESCipher) Decrypt(data []byte) ([]byte, error) {
-	if len(data) < aes.BlockSize {
+	if len(data) < aes.BlockSize || len(data)%aes.BlockSize != 0 {
 		return make([]byte, 0), fmt.Errorf("invalid cipher data size")
 	}
 

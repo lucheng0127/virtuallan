@@ -1,5 +1,7 @@
 package cipher
 
+// TODO Change AESKEY configurable
+//
 //go:generate sh ../../scripts/generate_key.sh
 const AESKEY = "B5FFCEE73EF298A4"
 
