@@ -7,6 +7,17 @@ import (
 	"strings"
 )
 
+func ValidateKey(key string) bool {
+	keyLen := len([]byte(key))
+
+	switch keyLen {
+	default:
+		return false
+	case 16, 24, 32:
+		return true
+	}
+}
+
 func ValidatePort(port int) bool {
 	if port > 1024 && port < 65535 {
 		return true

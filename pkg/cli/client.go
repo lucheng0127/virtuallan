@@ -29,6 +29,12 @@ func NewClientCmd() *cli.Command {
 				Usage:    "password of virtuallan endpoint user",
 				Required: false,
 			},
+			&cli.StringFlag{
+				Name:     "key",
+				Aliases:  []string{"k"},
+				Usage:    "encryption key of virtuallan",
+				Required: true,
+			},
 		},
 	}
 }

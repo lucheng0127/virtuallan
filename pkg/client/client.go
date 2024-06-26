@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lucheng0127/virtuallan/pkg/cipher"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -68,6 +70,12 @@ func handleSignal(conn *net.UDPConn, sigChan chan os.Signal) {
 
 func Run(cCtx *cli.Context) error {
 	var user, passwd string
+
+	if !utils.ValidateKey(cCtx.String("key")) {
+		return errors.New("invalid key size, 16, 24 or 32")
+	}
+	cipher.AESKEY = cCtx.String("key")
+
 	if cCtx.String("passwd") == "" || cCtx.String("user") == "" {
 		u, p, err := GetLoginInfo()
 		if err != nil {
