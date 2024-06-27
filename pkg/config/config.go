@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v3"
 )
@@ -20,12 +21,12 @@ type WebConfig struct {
 
 // TODO: Add routes
 type ServerConfig struct {
-	Port      int    `yaml:"port"`
-	IP        string `yaml:"ip"`
-	Bridge    string `yaml:"bridge"`
-	LogLevel  string `yaml:"log-level"`
+	Port      int    `yaml:"port" default:"6123"`
+	IP        string `yaml:"ip" validate:"required"`
+	Bridge    string `yaml:"bridge" validate:"required"`
+	LogLevel  string `yaml:"log-level" default:"info"`
 	Key       string `yaml:"key" validate:"required,validKeyLen"`
-	DHCPRange string `yaml:"dhcp-range"`
+	DHCPRange string `yaml:"dhcp-range" validate:"required"`
 	WebConfig `yaml:"web"`
 }
 
@@ -52,8 +53,11 @@ func LoadConfigFile(path string) (*ServerConfig, error) {
 	validate := validator.New()
 	validate.RegisterValidation("validKeyLen", IsValidKeyLength)
 
-	err = validate.Struct(cfg)
-	if err != nil {
+	if err := validate.Struct(cfg); err != nil {
+		return nil, err
+	}
+
+	if err := defaults.Set(cfg); err != nil {
 		return nil, err
 	}
 

@@ -2,7 +2,6 @@ package client
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -71,10 +70,9 @@ func handleSignal(conn *net.UDPConn, sigChan chan os.Signal) {
 func Run(cCtx *cli.Context) error {
 	var user, passwd string
 
-	if !utils.ValidateKey(cCtx.String("key")) {
-		return errors.New("invalid key size, 16, 24 or 32")
+	if err := cipher.SetAESKey(cCtx.String("key")); err != nil {
+		return err
 	}
-	cipher.AESKEY = cCtx.String("key")
 
 	if cCtx.String("passwd") == "" || cCtx.String("user") == "" {
 		u, p, err := GetLoginInfo()

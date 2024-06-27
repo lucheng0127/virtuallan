@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/lucheng0127/virtuallan/pkg/cipher"
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -82,6 +83,10 @@ func Run(cCtx *cli.Context) error {
 
 	svc.ServerConfig = cfg
 	svc.userDb = filepath.Join(cfgDir, "users")
+
+	if err := cipher.SetAESKey(cfg.Key); err != nil {
+		return err
+	}
 
 	switch strings.ToUpper(cfg.LogLevel) {
 	case "DEBUG":

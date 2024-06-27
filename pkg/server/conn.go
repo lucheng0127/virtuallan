@@ -206,6 +206,7 @@ func (svc *Server) ListenAndServe() error {
 		return err
 	}
 
+	log.Infof("run virtuallan server on udp port %d\n", svc.Port)
 	ln, err := net.ListenUDP("udp4", addr)
 	if err != nil {
 		return err
