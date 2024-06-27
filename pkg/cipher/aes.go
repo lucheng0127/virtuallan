@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/lucheng0127/virtuallan/pkg/utils"
 )
 
 type AESCipher struct {
@@ -89,12 +91,8 @@ func (ac *AESCipher) Decrypt(data []byte) ([]byte, error) {
 }
 
 func NewAESCipher(key string) (Cipher, error) {
-	k := len([]byte(key))
-	switch k {
-	default:
+	if !utils.ValidateKey(key) {
 		return nil, errors.New("invalid key size, 16, 24 or 32")
-	case 16, 24, 32:
-		break
 	}
 	return &AESCipher{key: key}, nil
 }

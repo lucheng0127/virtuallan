@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,6 +24,7 @@ type ServerConfig struct {
 	IP        string `yaml:"ip"`
 	Bridge    string `yaml:"bridge"`
 	LogLevel  string `yaml:"log-level"`
+	Key       string `yaml:"key" validate:"required,validKeyLen"`
 	DHCPRange string `yaml:"dhcp-range"`
 	WebConfig `yaml:"web"`
 }
@@ -47,5 +49,24 @@ func LoadConfigFile(path string) (*ServerConfig, error) {
 		return nil, err
 	}
 
+	validate := validator.New()
+	validate.RegisterValidation("validKeyLen", IsValidKeyLength)
+
+	err = validate.Struct(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+func IsValidKeyLength(fl validator.FieldLevel) bool {
+	k := len([]byte(fl.Field().String()))
+
+	switch k {
+	default:
+		return false
+	case 16, 24, 32:
+		return true
+	}
 }

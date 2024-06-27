@@ -3,6 +3,7 @@ ip: 192.168.123.254/24
 dhcp-range: 192.168.123.100-192.168.123.200
 bridge: br0
 log-level: info
+key: B5FFCEE73EF298A4
 web:
   enable: true
   port: 8000
