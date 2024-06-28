@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/creasty/defaults"
@@ -19,16 +20,20 @@ type WebConfig struct {
 	Port   int  `yaml:"port"`
 }
 
-// TODO: Add routes
+type RoutesConfig struct {
+	CIDR    string `yaml:"cidr" validate:"required,validateCidr"`
+	Nexthop string `yaml:"nexthop" validate:"required"`
+}
+
 type ServerConfig struct {
 	Port      int    `yaml:"port" default:"6123"`
 	IP        string `yaml:"ip" validate:"required"`
 	Bridge    string `yaml:"bridge" validate:"required"`
 	LogLevel  string `yaml:"log-level" default:"info"`
-	Key       string `yaml:"key" validate:"required,validKeyLen"`
+	Key       string `yaml:"key" validate:"required,validateKeyLen"`
 	DHCPRange string `yaml:"dhcp-range" validate:"required"`
 	WebConfig `yaml:"web"`
-	// TODO: Parse routes
+	Routes    []RoutesConfig `yaml:"routes"`
 }
 
 func GetCfgPath(dir string) string {
@@ -51,11 +56,18 @@ func LoadConfigFile(path string) (*ServerConfig, error) {
 		return nil, err
 	}
 
-	validate := validator.New()
-	validate.RegisterValidation("validKeyLen", IsValidKeyLength)
+	cfgValidator := validator.New()
+	cfgValidator.RegisterValidation("validateKeyLen", ValidateKeyLength)
+	cfgValidator.RegisterValidation("validateCidr", ValidateCIDR)
 
-	if err := validate.Struct(cfg); err != nil {
+	if err := cfgValidator.Struct(cfg); err != nil {
 		return nil, err
+	}
+
+	for _, route := range cfg.Routes {
+		if err := cfgValidator.Struct(route); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := defaults.Set(cfg); err != nil {
@@ -65,7 +77,15 @@ func LoadConfigFile(path string) (*ServerConfig, error) {
 	return cfg, nil
 }
 
-func IsValidKeyLength(fl validator.FieldLevel) bool {
+func ValidateCIDR(fl validator.FieldLevel) bool {
+	if _, _, err := net.ParseCIDR(fl.Field().String()); err != nil {
+		return false
+	}
+
+	return true
+}
+
+func ValidateKeyLength(fl validator.FieldLevel) bool {
 	k := len([]byte(fl.Field().String()))
 
 	switch k {

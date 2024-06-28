@@ -19,6 +19,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	UNKNOW_IP = "UNKNOW_IP"
+)
+
 type Server struct {
 	*config.ServerConfig
 	userDb  string
@@ -74,6 +78,27 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 	svc.Teardown()
 }
 
+func (svc *Server) InitRoutes() {
+	for _, route := range svc.ServerConfig.Routes {
+		svc.Routes[route.Nexthop] = UNKNOW_IP
+	}
+}
+
+func (svc *Server) UpdateRoutes(nexthop, ip string) {
+	nexthopIP, ok := svc.Routes[nexthop]
+	if !ok {
+		// Not a nexthop user
+		return
+	}
+
+	if nexthopIP != ip {
+		// Update nexthop with endpoint ip
+		svc.MLock.Lock()
+		svc.Routes[nexthop] = ip
+		svc.MLock.Unlock()
+	}
+}
+
 func Run(cCtx *cli.Context) error {
 	// Hide process arguments, it contains too many infos
 	gspt.SetProcTitle(os.Args[0] + " server")
@@ -112,6 +137,9 @@ func Run(cCtx *cli.Context) error {
 	if err := svc.ParseDHCPRange(); err != nil {
 		return err
 	}
+
+	// Init svc.Routes with unknow ip for each route nexthop
+	svc.InitRoutes()
 
 	// Run web server
 	if svc.ServerConfig.WebConfig.Enable {

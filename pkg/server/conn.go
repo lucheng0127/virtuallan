@@ -49,6 +49,7 @@ func (client *UClient) Close() {
 	client.Svc.ReleaseIP(client.IP)
 	delete(users.UserEPMap, client.User)
 	delete(UPool, client.RAddr.String())
+	client.Svc.UpdateRoutes(client.User, UNKNOW_IP)
 
 	client.CloseChan <- "FIN"
 }
@@ -283,7 +284,8 @@ func (svc *Server) ListenAndServe() error {
 
 			log.Infof("client %s auth succeed", addr.String())
 
-			// TODO: Parse nexthop user ip if need
+			// Parse nexthop user ip
+			svc.UpdateRoutes(client.User, client.IP.String())
 		case packet.P_KEEPALIVE:
 			// Handle keepalive
 			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String(), svc)
