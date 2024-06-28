@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/erikdubbelboer/gspt"
 	"github.com/lucheng0127/virtuallan/pkg/cipher"
 	"github.com/lucheng0127/virtuallan/pkg/config"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
@@ -74,6 +75,9 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 }
 
 func Run(cCtx *cli.Context) error {
+	// Hide process arguments, it contains too many infos
+	gspt.SetProcTitle(os.Args[0] + " server")
+
 	// New server and do cfg parse
 	svc := NewServer()
 

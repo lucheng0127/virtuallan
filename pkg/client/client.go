@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/erikdubbelboer/gspt"
 	"github.com/lucheng0127/virtuallan/pkg/cipher"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
@@ -68,6 +69,9 @@ func handleSignal(conn *net.UDPConn, sigChan chan os.Signal) {
 }
 
 func Run(cCtx *cli.Context) error {
+	// Hide process arguments, it contains too many infos
+	gspt.SetProcTitle(os.Args[0] + " client")
+
 	var user, passwd string
 
 	if err := cipher.SetAESKey(cCtx.String("key")); err != nil {
