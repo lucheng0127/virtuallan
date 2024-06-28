@@ -28,6 +28,7 @@ type ServerConfig struct {
 	Key       string `yaml:"key" validate:"required,validKeyLen"`
 	DHCPRange string `yaml:"dhcp-range" validate:"required"`
 	WebConfig `yaml:"web"`
+	// TODO: Parse routes
 }
 
 func GetCfgPath(dir string) string {

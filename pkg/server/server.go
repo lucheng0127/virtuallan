@@ -25,6 +25,7 @@ type Server struct {
 	IPStart net.IP
 	IPCount int
 	MLock   sync.Mutex
+	Routes  map[string]string // Nexthop username as key, user ipv4 addr as value
 }
 
 func NewServer() *Server {
@@ -32,6 +33,7 @@ func NewServer() *Server {
 
 	svc.UsedIP = make([]int, 0)
 	svc.MLock = sync.Mutex{}
+	svc.Routes = make(map[string]string)
 
 	return svc
 }

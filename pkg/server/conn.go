@@ -282,6 +282,8 @@ func (svc *Server) ListenAndServe() error {
 			}
 
 			log.Infof("client %s auth succeed", addr.String())
+
+			// TODO: Parse nexthop user ip if need
 		case packet.P_KEEPALIVE:
 			// Handle keepalive
 			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String(), svc)
