@@ -60,6 +60,7 @@ func (svc *Server) SetupLan() error {
 		return err
 	}
 
+	// TODO: Add multicast route 224.0.0.1 dev br
 	return nil
 }
 

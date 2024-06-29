@@ -199,6 +199,8 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
+	// TODO: Add multicast route 224.0.0.1 dev tap
+
 	// Send keepalive
 	go DoKeepalive(conn, ipAddr, 10)
 
