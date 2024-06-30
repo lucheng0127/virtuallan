@@ -1,10 +1,11 @@
 package server
 
 import (
-	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
-	"strings"
+
+	"github.com/lucheng0127/virtuallan/pkg/packet"
 )
 
 func (svc *Server) AvaliabelRoutes() string {
@@ -25,17 +26,18 @@ func (svc *Server) AvaliabelRouteStreams() []byte {
 	return []byte(svc.AvaliabelRoutes())
 }
 
-func (svc *Server) ParseRoutesStream(data []byte) map[string]string {
-	routes := make(map[string]string)
-	reader := bytes.NewReader(data)
+func (svc *Server) MulticastRoutes() error {
+	// Add routes prefix in multicast data
+	buf := new(bytes.Buffer)
 
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		rInfos := strings.Split(scanner.Text(), ">")
-		if len(rInfos) == 2 {
-			routes[rInfos[0]] = rInfos[1]
-		}
+	if err := binary.Write(buf, binary.BigEndian, packet.ROUTES_PREFIX); err != nil {
+		return err
 	}
 
-	return routes
+	stream := append(buf.Bytes(), svc.AvaliabelRouteStreams()...)
+	if err := packet.MulticastStream(stream); err != nil {
+		return err
+	}
+
+	return nil
 }
