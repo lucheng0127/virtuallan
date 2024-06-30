@@ -49,7 +49,14 @@ func (client *UClient) Close() {
 	client.Svc.ReleaseIP(client.IP)
 	delete(users.UserEPMap, client.User)
 	delete(UPool, client.RAddr.String())
+
+	// Multicast route when client close
 	client.Svc.UpdateRoutes(client.User, UNKNOW_IP)
+	if err := client.Svc.MulticastRoutes(); err != nil {
+		log.Errorf("mulitcast route %s", err.Error())
+	}
+
+	// TODO: Sync routes
 
 	client.CloseChan <- "FIN"
 }
@@ -286,6 +293,11 @@ func (svc *Server) ListenAndServe() error {
 
 			// Parse nexthop user ip
 			svc.UpdateRoutes(client.User, client.IP.String())
+			if err := svc.MulticastRoutes(); err != nil {
+				log.Errorf("mulitcast route %s", err.Error())
+			}
+
+			// TODO: Sync routes
 		case packet.P_KEEPALIVE:
 			// Handle keepalive
 			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String(), svc)

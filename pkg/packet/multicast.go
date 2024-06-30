@@ -78,7 +78,7 @@ func MonitorRouteMulticast(iface *net.Interface) {
 		// Parse route stream
 		routes := utils.ParseRoutesStream(buf[2:])
 
-		// Add route, ignore route exist error
+		// TODO: Sync routes, use flag replace, for unknow ip need delete
 		for cidr, nexthop := range routes {
 			fmt.Printf("%s -> %s\n", cidr, nexthop)
 		}

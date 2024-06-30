@@ -184,3 +184,14 @@ func AddMulticastRouteToIface(cidr string, ifaceIdx int) error {
 
 	return nil
 }
+
+func SyncRoutesForIface(ifaceName string, routes map[string]string) error {
+	// TODO: Implement it
+
+	// Get nexthop dev iface
+
+	// Range routes, for unknow ip delete route
+	// for know ip replace route
+	// ignore route exist and route not exist error
+	return nil
+}

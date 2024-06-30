@@ -26,12 +26,13 @@ const (
 
 type Server struct {
 	*config.ServerConfig
-	userDb  string
-	UsedIP  []int
-	IPStart net.IP
-	IPCount int
-	MLock   sync.Mutex
-	Routes  map[string]string // Nexthop username as key, user ipv4 addr as value
+	userDb      string
+	UsedIP      []int
+	IPStart     net.IP
+	IPCount     int
+	MLock       sync.Mutex
+	Routes      map[string]string // Nexthop username as key, user ipv4 addr as value
+	RouteChange bool
 }
 
 func NewServer() *Server {
@@ -40,6 +41,7 @@ func NewServer() *Server {
 	svc.UsedIP = make([]int, 0)
 	svc.MLock = sync.Mutex{}
 	svc.Routes = make(map[string]string)
+	svc.RouteChange = false
 
 	return svc
 }
@@ -98,9 +100,10 @@ func (svc *Server) UpdateRoutes(nexthop, ip string) {
 	}
 
 	if nexthopIP != ip {
-		// Update nexthop with endpoint ip
+		// Update nexthop with endpoint ip, set svc.RouteChange to true
 		svc.MLock.Lock()
 		svc.Routes[nexthop] = ip
+		svc.RouteChange = true
 		svc.MLock.Unlock()
 	}
 }

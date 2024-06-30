@@ -209,6 +209,9 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
+	// Monitor multicast for route bordcast
+	go packet.MonitorRouteMulticast(tapIface)
+
 	// Send keepalive
 	go DoKeepalive(conn, ipAddr, 10)
 
