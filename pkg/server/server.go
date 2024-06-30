@@ -12,6 +12,7 @@ import (
 	"github.com/erikdubbelboer/gspt"
 	"github.com/lucheng0127/virtuallan/pkg/cipher"
 	"github.com/lucheng0127/virtuallan/pkg/config"
+	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -57,10 +58,14 @@ func (svc *Server) SetupLan() error {
 	// Add ip and set up
 	err = utils.AsignAddrToLink(la.Name, svc.IP, true)
 	if err != nil {
+		return fmt.Errorf("assign ip to bridge %s", err.Error())
+	}
+
+	// Add multicast route 224.0.0.1 dev br
+	if err := utils.AddMulticastRouteToIface(fmt.Sprintf("%s/32", packet.MULTICAST_ADDR), br.Index); err != nil {
 		return err
 	}
 
-	// TODO: Add multicast route 224.0.0.1 dev br
 	return nil
 }
 

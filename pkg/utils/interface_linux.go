@@ -166,3 +166,21 @@ func GetLinkStatsByName(name string, linkMsg []LinkMessages) (uint64, uint64, st
 
 	return 0, 0, "", ""
 }
+
+func AddMulticastRouteToIface(cidr string, ifaceIdx int) error {
+	mNet, err := netlink.ParseIPNet(cidr)
+	if err != nil {
+		return fmt.Errorf("parse multicast net %s", err.Error())
+	}
+
+	mRoute := &netlink.Route{
+		LinkIndex: ifaceIdx,
+		Dst:       mNet,
+	}
+
+	if err := netlink.RouteAdd(mRoute); err != nil {
+		return fmt.Errorf("add mutlicast route %s", err.Error())
+	}
+
+	return nil
+}

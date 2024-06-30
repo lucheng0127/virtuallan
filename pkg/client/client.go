@@ -199,7 +199,15 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
-	// TODO: Add multicast route 224.0.0.1 dev tap
+	// Add multicast route 224.0.0.1 dev tap
+	tapIface, err := net.InterfaceByName(iface.Name())
+	if err != nil {
+		return fmt.Errorf("get tap interface %s", err.Error())
+	}
+
+	if err := utils.AddMulticastRouteToIface(fmt.Sprintf("%s/32", packet.MULTICAST_ADDR), tapIface.Index); err != nil {
+		return err
+	}
 
 	// Send keepalive
 	go DoKeepalive(conn, ipAddr, 10)
