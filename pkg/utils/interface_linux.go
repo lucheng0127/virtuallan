@@ -9,6 +9,10 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+const (
+	UNKNOW_IP = "UNKNOW_IP"
+)
+
 type LinkMessages struct {
 	InterfaceName string
 	RX_SIZE       string
@@ -185,13 +189,47 @@ func AddMulticastRouteToIface(cidr string, ifaceIdx int) error {
 	return nil
 }
 
-func SyncRoutesForIface(ifaceName string, routes map[string]string) error {
-	// TODO: Implement it
-
+func SyncRoutesForIface(ifaceName, ip string, routes map[string]string) error {
 	// Get nexthop dev iface
+	iface, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("get link %s %s", ifaceName, err.Error())
+	}
 
 	// Range routes, for unknow ip delete route
 	// for know ip replace route
 	// ignore route exist and route not exist error
+	for cidr, nexthop := range routes {
+		cidrNet, err := netlink.ParseIPNet(cidr)
+		if err != nil {
+			return fmt.Errorf("route cidr %s parse %s", cidr, err.Error())
+		}
+
+		route := &netlink.Route{
+			LinkIndex: iface.Attrs().Index,
+			Dst:       cidrNet,
+		}
+
+		if nexthop == "" || nexthop == UNKNOW_IP {
+			err := netlink.RouteDel(route)
+			if err != nil && !IsRouteNotExist(err) {
+				return fmt.Errorf("delete route %s", err.Error())
+			}
+		} else {
+			if nexthop == ip {
+				// For nexthop is current endpoint skip
+				continue
+			}
+
+			gw := net.ParseIP(nexthop)
+			route.Gw = gw
+
+			err := netlink.RouteReplace(route)
+			if err != nil {
+				return fmt.Errorf("add route %s", err.Error())
+			}
+		}
+	}
+
 	return nil
 }

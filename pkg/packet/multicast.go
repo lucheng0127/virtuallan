@@ -35,7 +35,7 @@ func MulticastStream(data []byte) error {
 	return nil
 }
 
-func MonitorRouteMulticast(iface *net.Interface) {
+func MonitorRouteMulticast(iface *net.Interface, tapIP string) {
 	// Monitor route multicast will run as a goruntine in client so log error but don't exit
 	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", MULTICAST_ADDR, MULTICAST_PORT))
 	if err != nil {
@@ -78,9 +78,9 @@ func MonitorRouteMulticast(iface *net.Interface) {
 		// Parse route stream
 		routes := utils.ParseRoutesStream(buf[2:])
 
-		// TODO: Sync routes, use flag replace, for unknow ip need delete
-		for cidr, nexthop := range routes {
-			fmt.Printf("%s -> %s\n", cidr, nexthop)
+		// Sync routes, use flag replace, for unknow ip need delete
+		if err := utils.SyncRoutesForIface(iface.Name, tapIP, routes); err != nil {
+			log.Errorf("sync route for %s %s", iface.Name, err.Error())
 		}
 	}
 }

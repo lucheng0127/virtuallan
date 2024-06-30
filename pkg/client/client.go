@@ -209,8 +209,9 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
+	// XXX: Sometime when client restart too fast will not reveice the first multicast pkt
 	// Monitor multicast for route bordcast
-	go packet.MonitorRouteMulticast(tapIface)
+	go packet.MonitorRouteMulticast(tapIface, strings.Split(ipAddr, "/")[0])
 
 	// Send keepalive
 	go DoKeepalive(conn, ipAddr, 10)

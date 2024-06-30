@@ -51,12 +51,15 @@ func (client *UClient) Close() {
 	delete(UPool, client.RAddr.String())
 
 	// Multicast route when client close
-	client.Svc.UpdateRoutes(client.User, UNKNOW_IP)
+	client.Svc.UpdateRoutes(client.User, utils.UNKNOW_IP)
 	if err := client.Svc.MulticastRoutes(); err != nil {
 		log.Errorf("mulitcast route %s", err.Error())
 	}
 
-	// TODO: Sync routes
+	// Sync routes
+	if err := utils.SyncRoutesForIface(client.Svc.Bridge, strings.Split(client.Svc.IP, "/")[0], client.Svc.GetRouteEntries()); err != nil {
+		log.Errorf("sync route for dev %s %s", client.Svc.Bridge, err.Error())
+	}
 
 	client.CloseChan <- "FIN"
 }
@@ -297,7 +300,10 @@ func (svc *Server) ListenAndServe() error {
 				log.Errorf("mulitcast route %s", err.Error())
 			}
 
-			// TODO: Sync routes
+			// Sync routes
+			if err := utils.SyncRoutesForIface(svc.Bridge, strings.Split(svc.IP, "/")[0], svc.GetRouteEntries()); err != nil {
+				log.Errorf("sync route for dev %s %s", svc.Bridge, err.Error())
+			}
 		case packet.P_KEEPALIVE:
 			// Handle keepalive
 			err = HandleKeepalive(pkt.VLBody.(*packet.KeepaliveBody).Parse(), addr.String(), svc)

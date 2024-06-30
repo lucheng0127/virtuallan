@@ -21,3 +21,7 @@ func IsRunOutOfIP(err error) bool {
 func IsTapNotExist(err error) bool {
 	return strings.Contains(err.Error(), "file descriptor in bad state")
 }
+
+func IsRouteNotExist(err error) bool {
+	return strings.Contains(err.Error(), "no such process")
+}

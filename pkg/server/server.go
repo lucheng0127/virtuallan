@@ -20,19 +20,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	UNKNOW_IP = "UNKNOW_IP"
-)
-
 type Server struct {
 	*config.ServerConfig
-	userDb      string
-	UsedIP      []int
-	IPStart     net.IP
-	IPCount     int
-	MLock       sync.Mutex
-	Routes      map[string]string // Nexthop username as key, user ipv4 addr as value
-	RouteChange bool
+	userDb  string
+	UsedIP  []int
+	IPStart net.IP
+	IPCount int
+	MLock   sync.Mutex
+	Routes  map[string]string // Nexthop username as key, user ipv4 addr as value
 }
 
 func NewServer() *Server {
@@ -41,7 +36,6 @@ func NewServer() *Server {
 	svc.UsedIP = make([]int, 0)
 	svc.MLock = sync.Mutex{}
 	svc.Routes = make(map[string]string)
-	svc.RouteChange = false
 
 	return svc
 }
@@ -88,7 +82,12 @@ func (svc *Server) HandleSignal(sigChan chan os.Signal) {
 
 func (svc *Server) InitRoutes() {
 	for _, route := range svc.ServerConfig.Routes {
-		svc.Routes[route.Nexthop] = UNKNOW_IP
+		if route.Nexthop == "SERVER" {
+			// Parse route to virtuallan server
+			svc.Routes[route.Nexthop] = strings.Split(svc.ServerConfig.IP, "/")[0]
+		} else {
+			svc.Routes[route.Nexthop] = utils.UNKNOW_IP
+		}
 	}
 }
 
@@ -100,10 +99,8 @@ func (svc *Server) UpdateRoutes(nexthop, ip string) {
 	}
 
 	if nexthopIP != ip {
-		// Update nexthop with endpoint ip, set svc.RouteChange to true
 		svc.MLock.Lock()
 		svc.Routes[nexthop] = ip
-		svc.RouteChange = true
 		svc.MLock.Unlock()
 	}
 }

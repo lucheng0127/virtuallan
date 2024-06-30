@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
+	"github.com/lucheng0127/virtuallan/pkg/utils"
 )
 
 func (svc *Server) GetRoutes() string {
@@ -26,17 +28,11 @@ func (svc *Server) GetRouteStreams() []byte {
 	return []byte(svc.GetRoutes())
 }
 
+func (svc *Server) GetRouteEntries() map[string]string {
+	return utils.ParseRoutesStream(svc.GetRouteStreams())
+}
+
 func (svc *Server) MulticastRoutes() error {
-	if !svc.RouteChange {
-		// Route not change
-		return nil
-	}
-
-	// Update svc.RouteChange flag to false, when svc.Routes change, it will set to true
-	svc.MLock.Lock()
-	svc.RouteChange = false
-	svc.MLock.Unlock()
-
 	// Add routes prefix in multicast data
 	buf := new(bytes.Buffer)
 
@@ -45,6 +41,9 @@ func (svc *Server) MulticastRoutes() error {
 	}
 
 	stream := append(buf.Bytes(), svc.GetRouteStreams()...)
+
+	// XXX: Make 50ms delay to send multicast routes, to prevent endpoint start too fast don't receive route multicast
+	time.Sleep(50 * time.Microsecond)
 	if err := packet.MulticastStream(stream); err != nil {
 		return err
 	}

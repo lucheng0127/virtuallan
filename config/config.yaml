@@ -6,7 +6,11 @@ bridge: br0
 key: B5FFCEE73EF298A4
 routes:
   - cidr: 192.168.0.0/24
+    nexthop: SERVER # route nexthop to virtuallan server
+  - cidr: 192.168.1.0/24
     nexthop: wj # route nexthop user name
+  - cidr: 192.168.2.0/24
+    nexthop: guest # route nexthop user name
 web:
   enable: true
   port: 8000
