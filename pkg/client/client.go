@@ -72,6 +72,8 @@ func Run(cCtx *cli.Context) error {
 	// Hide process arguments, it contains too many infos
 	gspt.SetProcTitle(os.Args[0] + " client")
 
+	// TODO: Add args to set log level
+
 	var user, passwd string
 
 	if err := cipher.SetAESKey(cCtx.String("key")); err != nil {
