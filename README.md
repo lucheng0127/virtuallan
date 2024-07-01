@@ -6,6 +6,9 @@ virtuallan is a l2vpn. It can setup an virtual Ethernet LAN network in WAN.
 * Basic auth for vpn endpoint
 * AES encrypt for ethernet traffic
 * Ethernet traffic in udp
+* DHCP supported
+* Pre-configured routes supported
+* Monitor web supported
 
 ## How it work
 ![architecture](./docs/statics/architecture.png)
@@ -14,28 +17,45 @@ virtuallan is a l2vpn. It can setup an virtual Ethernet LAN network in WAN.
 * client create a tap interface
 * encrypt ethernet traffic that on tap interface and send to udp conn
 * receive udp stream from conn and decrypt then send to tap interface
+* maintain a ip pool, endpoint get or release ip from or to it
+* pre-configure routes in config.yaml, and the server will multicast
+  routes to each endpoint via 224.0.0.1:9999, when endpoint received
+  it, sync local tap routes
 
 An udp connection just like a cable connect dc and ep taps. And the taps became to a pair linux veth peer, connected to a linux bridge.
 
 ## Build
 
 ```
-➜  virtuallan git:(master) ✗ make
-go generate pkg/cipher/cipher.go
-go build -o virtuallan main.go
+# Build a binary, run make it will generate a random aes key in confg.yaml
+make
+
+# Build a docker image
+>IMG=\<your image name>:\<tag> make build-docker
 ```
 
 go generate will generate an random aes key
 
-## Use with docker
+## Ready to use
 
-**Build**
->IMG=\<your image name>:\<tag> make build-docker
+### Config.yaml
 
-**Run docker image as server**
->docker run --privileged=true -d --restart always -p 6123:6123/udp -p 8000:8000 quay.io/shawnlu0127/virtuallan:20240507
-
-## Getting started
+```
+port: 6123                 # The udp port server listened, default 6123
+ip: 192.168.123.254/24                         # The ip of server
+dhcp-range: 192.168.123.100-192.168.123.200    # DHCP ip range
+bridge: br0                                    # Bridge name of server
+log-level: info                                # Log level, default info
+key: B5FFCEE73EF298A4                          # The AES key, length 16Bytes
+routes:                    # Routes, To cidr via nexthop, nexthop use endpoint username
+  - cidr: 172.17.15.0/24
+    nexthop: SERVER        # route nexthop via virtuallan server
+  - cidr: 192.168.0.0/24
+    nexthop: wj            # route nexthop username, will be parse to user ip
+web:                       # Web config
+  enable: true             # Set to true to enable web, default false
+  port: 8000               # Web server listen port
+```
 
 **Server**
 ```
@@ -55,19 +75,6 @@ config dir files:
 * config.yaml: server config file
 * users: user database csv format \<username>,\<user passwd base64 encode>
 
-config.yaml
-
-```
-port: 6123                                     # UDP server port
-ip: 192.168.123.254/24                         # Server local ip address
-dhcp-range: 192.168.123.100-192.168.123.200    # DHCP ip pool
-bridge: br0                                    # Server local bridge name
-log-level: info                                # Log level
-web:
-  enable: true                                 # Monitor server enable, default false
-  port: 8000                                   # Web server port
-```
-
 **Endpoint**
 ```
 ➜  ~ virtuallan client -h
@@ -78,10 +85,12 @@ USAGE:
    virtuallan client [command options] [arguments...]
 
 OPTIONS:
-   --target value, -t value  socket virtuallan server listened on
-   --user value, -u value    username of virtuallan endpoint
-   --passwd value, -p value  password of virtuallan endpoint user
-   --help, -h                show help
+   --target value, -t value     socket virtuallan server listened on
+   --user value, -u value       username of virtuallan endpoint
+   --passwd value, -p value     password of virtuallan endpoint user
+   --key value, -k value        encryption key of virtuallan
+   --log-level value, -l value  log level (default: info)
+   --help, -h                   show help
 ```
 
 If not set -u and -p flags, you need to input user name and passwd in console
