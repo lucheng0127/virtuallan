@@ -61,7 +61,7 @@ func MonitorRouteMulticast(iface *net.Interface, tapIP string) {
 		}
 
 		log.Debugf("read multicast from %s", srcAddr.String())
-		// TODO: Check source addr same cidr with enpoint ip
+		// XXX: Check source addr same cidr with enpoint ip maybe
 
 		// Strip route prefix
 		if n < 2 {

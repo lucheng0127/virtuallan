@@ -72,7 +72,18 @@ func Run(cCtx *cli.Context) error {
 	// Hide process arguments, it contains too many infos
 	gspt.SetProcTitle(os.Args[0] + " client")
 
-	// TODO: Add args to set log level
+	logLevel := cCtx.String("log-level")
+
+	switch strings.ToUpper(logLevel) {
+	case "DEBUG":
+		log.SetLevel(log.DebugLevel)
+	case "INFO":
+		log.SetLevel(log.InfoLevel)
+	case "WARN":
+		log.SetLevel(log.WarnLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 
 	var user, passwd string
 

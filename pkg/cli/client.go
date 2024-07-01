@@ -35,6 +35,12 @@ func NewClientCmd() *cli.Command {
 				Usage:    "encryption key of virtuallan",
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:        "log-level",
+				Aliases:     []string{"l"},
+				Usage:       "log level",
+				DefaultText: "info",
+			},
 		},
 	}
 }
