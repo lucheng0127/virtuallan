@@ -39,7 +39,7 @@ make
 1. Before launch it, make sure [tap-windows](https://github.com/OpenVPN/tap-windows6) has been install.
 2. Install a Tap-Windows Adapter
    ```
-   .\devcon.exe OemVista.inf tap0901
+   .\devcon.exe install OemVista.inf tap0901
    ```
 3. Build a windows exe
    ```
