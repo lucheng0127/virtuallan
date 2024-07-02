@@ -34,6 +34,24 @@ make
 >IMG=\<your image name>:\<tag> make build-docker
 ```
 
+**Windows support**
+
+1. Before launch it, make sure [tap-windows](https://github.com/OpenVPN/tap-windows6) has been install.
+2. Install a Tap-Windows Adapter
+   ```
+   .\devcon.exe OemVista.inf tap0901
+   ```
+3. Checkout to win branch
+4. Build a windows exe
+   ```
+   GOOS=windows GOARCH=amd64 go build -o virtuallan.exe main.go
+   ```
+5. Launch virtuallan.exe
+   ![](./docs/statics/login.png)
+6. Enjoy it
+   ![](./docs/statics/ip.png)
+   ![](./docs/statics/ping.png)
+
 go generate will generate an random aes key
 
 ## Ready to use
