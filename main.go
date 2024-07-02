@@ -11,10 +11,14 @@ import (
 func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
-			vcli.NewServerCmd(),
 			vcli.NewClientCmd(),
 			vcli.NewUserCmd(),
 		},
+	}
+
+	serverCmd := vcli.NewServerCmd()
+	if serverCmd != nil {
+		app.Commands = append(app.Commands, serverCmd)
 	}
 
 	if err := app.Run(os.Args); err != nil {

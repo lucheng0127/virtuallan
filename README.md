@@ -41,14 +41,13 @@ make
    ```
    .\devcon.exe OemVista.inf tap0901
    ```
-3. Checkout to win branch
-4. Build a windows exe
+3. Build a windows exe
    ```
-   GOOS=windows GOARCH=amd64 go build -o virtuallan.exe main.go
+   make build-windows
    ```
-5. Launch virtuallan.exe
+4. Launch virtuallan.exe
    ![](./docs/statics/login.png)
-6. Enjoy it
+5. Enjoy it
    ![](./docs/statics/ip.png)
    ![](./docs/statics/ping.png)
 
