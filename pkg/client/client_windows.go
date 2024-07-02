@@ -176,6 +176,10 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
+	if err := utils.AsignAddrToLink(iface.Name(), ipAddr); err != nil {
+		return err
+	}
+
 	// Set tap mac address according to ipv4 address,
 	// it will make sure each ip with a fixed mac address,
 	// so the arp entry will always be correct even when

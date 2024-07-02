@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os/exec"
+	"strings"
 
 	"github.com/songgao/water"
 )
@@ -90,4 +92,12 @@ func NewTap(ip string) (*water.Interface, error) {
 	}
 
 	return iface, nil
+}
+
+func AsignAddrToLink(name, addr string) error {
+	cmd := exec.Command("netsh", "interface", "ip", "set", "address", fmt.Sprintf("name=%s", name), "static", strings.Split(addr, "/")[0], "255.255.255.0")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("assign ip %s to tap %s %s", addr, name, err.Error())
+	}
+	return nil
 }
