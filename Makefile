@@ -12,8 +12,12 @@ build: gen
 
 .PHONY: clean
 clean:
-	rm -rf virtuallan
+	rm -rf virtuallan virtuallan.exe
 
 .PHONY: build-docker
 build-docker: gen
 	$(CONTAINER_TOOL) build -t ${IMG} .
+
+.PHONY: build-windows
+build-windows:
+	GOOS=windows GOARCH=amd64 go build -o virtuallan.exe main.go
