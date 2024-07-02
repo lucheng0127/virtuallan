@@ -25,6 +25,21 @@ go generate pkg/cipher/cipher.go
 go build -o virtuallan main.go
 ```
 
+**Windows support**
+
+1. Before launch it, make sure [tap-windows](https://github.com/OpenVPN/tap-windows6) has been install.
+2. Install a Tap-Windows Adapter
+   ```
+   .\devcon.exe OemVista.inf tap0901
+   ```
+3. Checkout to win branch
+4. Build a windows exe
+   ```
+   GOOS=windows GOARCH=amd64 go build -o virtuallan.exe main.go
+   ```
+5. Launch virtuallan.exe and change the tap ip manual
+6. Enjoy it
+
 go generate will generate an random aes key
 
 ## Use with docker
