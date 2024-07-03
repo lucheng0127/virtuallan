@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := build
+.DEFAULT_GOAL := build build-windows
 IMG ?= virtuallan:latest
 CONTAINER_TOOL ?= docker
 
