@@ -18,6 +18,7 @@ virtuallan is a l2vpn. It can setup an virtual Ethernet LAN network in WAN.
 * encrypt ethernet traffic that on tap interface and send to udp conn
 * receive udp stream from conn and decrypt then send to tap interface
 * maintain a ip pool, endpoint get or release ip from or to it
+* generate mac from ip, make sure arp entry will not staled even when endpoint restart
 * pre-configure routes in config.yaml, and the server will multicast
   routes to each endpoint via 224.0.0.1:9999, when endpoint received
   it, sync local tap routes
