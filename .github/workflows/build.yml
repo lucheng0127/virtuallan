@@ -22,7 +22,7 @@ jobs:
       run: go mod tidy
 
     - name: Test
-      run: go test -v ./...
+      run: go test -gcflags=-l -v ./...
 
     - name: Run build
       run: make

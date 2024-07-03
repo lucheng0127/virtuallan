@@ -1,12 +1,17 @@
+//go:build linux
+
 package packet
 
 import (
 	"testing"
+
+	"github.com/lucheng0127/virtuallan/pkg/cipher"
 )
 
 func TestAuthPktEncodeAndDecode(t *testing.T) {
 	user := "shawn"
 	passwd := "secret1111"
+	cipher.SetAESKey("0123456789abcdef")
 
 	pkt := &VLPkt{
 		VLHeader: VLHeader{Type: P_AUTH},
