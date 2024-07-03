@@ -1,6 +1,9 @@
-.DEFAULT_GOAL := build build-windows
+.DEFAULT_GOAL := all
 IMG ?= virtuallan:latest
 CONTAINER_TOOL ?= docker
+
+.PHONY: all
+all: build build-windows
 
 .PHONY: gen
 gen:
