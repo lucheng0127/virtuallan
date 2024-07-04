@@ -79,6 +79,7 @@ func MonitorRouteMulticast(iface *net.Interface, tapIP string) {
 		routes := utils.ParseRoutesStream(buf[2:])
 		log.Debugf("receive route multicast:\n%+v", routes)
 
+		// TODO: Implement in windows
 		// Sync routes, use flag replace, for unknow ip need delete
 		if err := utils.SyncRoutesForIface(iface.Name, tapIP, routes); err != nil {
 			log.Errorf("sync route for %s %s", iface.Name, err.Error())
