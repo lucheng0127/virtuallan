@@ -11,7 +11,8 @@ import (
 )
 
 type webServe struct {
-	port int
+	port  int
+	index string
 }
 
 type EpEntry struct {
@@ -67,7 +68,7 @@ func (svc *webServe) Serve() {
 	gin.DefaultWriter = io.Discard
 
 	router := gin.Default()
-	router.LoadHTMLFiles("./static/index.html")
+	router.LoadHTMLFiles(svc.index)
 
 	router.GET("/endpoints", listEpEntries)
 	router.GET("/", func(c *gin.Context) {

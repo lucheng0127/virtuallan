@@ -11,4 +11,5 @@ routes:
     nexthop: wj # route nexthop user name
 web:
   enable: true
-  port: 8000
+  #port: 8000
+  index: "/opt/virtuallan/static/index.html" # web index html file, must name as index.html

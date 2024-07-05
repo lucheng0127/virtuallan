@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
@@ -16,8 +17,9 @@ const (
 )
 
 type WebConfig struct {
-	Enable bool `yaml:"enable"`
-	Port   int  `yaml:"port"`
+	Enable bool   `yaml:"enable"`
+	Port   int    `yaml:"port" default:"8000"`
+	Index  string `yaml:"index" validate:"required,validateIndex" default:"./static/index.html"`
 }
 
 type RoutesConfig struct {
@@ -26,14 +28,14 @@ type RoutesConfig struct {
 }
 
 type ServerConfig struct {
-	Port      int    `yaml:"port" default:"6123"`
-	IP        string `yaml:"ip" validate:"required"`
-	Bridge    string `yaml:"bridge" validate:"required"`
-	LogLevel  string `yaml:"log-level" default:"info"`
-	Key       string `yaml:"key" validate:"required,validateKeyLen"`
-	DHCPRange string `yaml:"dhcp-range" validate:"required"`
-	WebConfig `yaml:"web"`
-	Routes    []RoutesConfig `yaml:"routes"`
+	Port       int    `yaml:"port" default:"6123"`
+	IP         string `yaml:"ip" validate:"required"`
+	Bridge     string `yaml:"bridge" validate:"required"`
+	LogLevel   string `yaml:"log-level" default:"info"`
+	Key        string `yaml:"key" validate:"required,validateKeyLen"`
+	DHCPRange  string `yaml:"dhcp-range" validate:"required"`
+	*WebConfig `yaml:"web"`
+	Routes     []RoutesConfig `yaml:"routes"`
 }
 
 func GetCfgPath(dir string) string {
@@ -51,14 +53,21 @@ func LoadConfigFile(path string) (*ServerConfig, error) {
 	}
 
 	cfg := new(ServerConfig)
+	cfg.WebConfig = new(WebConfig)
+
 	err = yaml.Unmarshal(f, cfg)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := defaults.Set(cfg); err != nil {
 		return nil, err
 	}
 
 	cfgValidator := validator.New()
 	cfgValidator.RegisterValidation("validateKeyLen", ValidateKeyLength)
 	cfgValidator.RegisterValidation("validateCidr", ValidateCIDR)
+	cfgValidator.RegisterValidation("validateIndex", ValidateIndex)
 
 	if err := cfgValidator.Struct(cfg); err != nil {
 		return nil, err
@@ -70,11 +79,17 @@ func LoadConfigFile(path string) (*ServerConfig, error) {
 		}
 	}
 
-	if err := defaults.Set(cfg); err != nil {
-		return nil, err
+	if cfg.WebConfig != nil && cfg.WebConfig.Enable {
+		if err := cfgValidator.Struct(cfg.WebConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	return cfg, nil
+}
+
+func ValidateIndex(fl validator.FieldLevel) bool {
+	return strings.HasSuffix(fl.Field().String(), "index.html")
 }
 
 func ValidateCIDR(fl validator.FieldLevel) bool {

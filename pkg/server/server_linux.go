@@ -150,7 +150,8 @@ func Run(cCtx *cli.Context) error {
 	// Run web server
 	if svc.ServerConfig.WebConfig.Enable {
 		webSvc := &webServe{
-			port: svc.ServerConfig.WebConfig.Port,
+			port:  svc.ServerConfig.WebConfig.Port,
+			index: svc.ServerConfig.WebConfig.Index,
 		}
 		go webSvc.Serve()
 		log.Info("run web server on port ", webSvc.port)
