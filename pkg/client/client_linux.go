@@ -85,6 +85,8 @@ func Run(cCtx *cli.Context) error {
 		log.SetLevel(log.InfoLevel)
 	}
 
+	log.SetOutput(os.Stdout)
+
 	var user, passwd string
 
 	if err := cipher.SetAESKey(cCtx.String("key")); err != nil {

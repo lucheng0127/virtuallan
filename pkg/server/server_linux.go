@@ -136,6 +136,8 @@ func Run(cCtx *cli.Context) error {
 		log.SetLevel(log.InfoLevel)
 	}
 
+	log.SetOutput(os.Stdout)
+
 	if !utils.ValidateIPv4WithNetmask(svc.ServerConfig.IP) {
 		return fmt.Errorf("invalidate ip %s, <ip>/<netmask len>", svc.ServerConfig.IP)
 	}
