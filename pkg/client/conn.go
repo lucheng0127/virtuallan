@@ -7,10 +7,9 @@ import (
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	log "github.com/sirupsen/logrus"
-	"github.com/songgao/water"
 )
 
-func HandleConn(iface *water.Interface, netToIface chan *packet.VLPkt, conn *net.UDPConn) {
+func (c *Client) HandleConn(netToIface chan *packet.VLPkt) {
 	go func() {
 		for {
 			pkt := <-netToIface
@@ -24,9 +23,9 @@ func HandleConn(iface *water.Interface, netToIface chan *packet.VLPkt, conn *net
 				continue
 			}
 
-			_, err = iface.Write(stream)
+			_, err = c.Iface.Write(stream)
 			if err != nil {
-				log.Errorf("write to tap %s %s\n", iface.Name(), err.Error())
+				log.Errorf("write to tap %s %s\n", c.Iface.Name(), err.Error())
 				continue
 			}
 		}
@@ -35,9 +34,9 @@ func HandleConn(iface *water.Interface, netToIface chan *packet.VLPkt, conn *net
 	for {
 		var buf [65535]byte
 
-		n, err := iface.Read(buf[:])
+		n, err := c.Iface.Read(buf[:])
 		if err != nil {
-			log.Errorf("read from tap %s %s\n", iface.Name(), err.Error())
+			log.Errorf("read from tap %s %s\n", c.Iface.Name(), err.Error())
 			continue
 		}
 
@@ -48,9 +47,9 @@ func HandleConn(iface *water.Interface, netToIface chan *packet.VLPkt, conn *net
 			continue
 		}
 
-		_, err = conn.Write(stream)
+		_, err = c.Conn.Write(stream)
 		if err != nil {
-			log.Errorf("send udp stream to %s %s\n", conn.RemoteAddr().String(), err.Error())
+			log.Errorf("send udp stream to %s %s\n", c.Conn.RemoteAddr().String(), err.Error())
 			os.Exit(1)
 		}
 	}
@@ -75,13 +74,13 @@ func SendKeepalive(conn *net.UDPConn, addr string) error {
 	return nil
 }
 
-func DoKeepalive(conn *net.UDPConn, addr string, interval int) {
+func (c *Client) DoKeepalive(interval int) {
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
 	for {
-		err := SendKeepalive(conn, addr)
+		err := SendKeepalive(c.Conn, c.IPAddr)
 		if err != nil {
-			log.Errorf("send keepalive to %s %s", conn.RemoteAddr(), err.Error())
+			log.Errorf("send keepalive to %s %s", c.Conn.RemoteAddr(), err.Error())
 		}
 		<-ticker.C
 	}

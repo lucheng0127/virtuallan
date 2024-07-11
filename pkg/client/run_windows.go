@@ -1,92 +1,25 @@
 package client
 
 import (
-	"bufio"
-	"fmt"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
-	"syscall"
-	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/cipher"
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/term"
 )
 
-func GetLoginInfo() (string, string, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Username:")
-	user, err := reader.ReadString('\n')
-	if err != nil {
-		return "", "", err
-	}
-
-	fmt.Println("Password:")
-	bytePasswd, err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		return "", "", err
-	}
-
-	passwd := string(bytePasswd)
-
-	return strings.TrimSpace(user), strings.TrimSpace(passwd), nil
-}
-
-func checkLoginTimeout(c chan string) {
-	select {
-	case <-c:
-		return
-	case <-time.After(10 * time.Second):
-		log.Error("login timeout")
-		os.Exit(1)
-	}
-}
-
-func handleSignal(conn *net.UDPConn, sigChan chan os.Signal) {
-	sig := <-sigChan
-	log.Infof("received signal: %v, send fin pkt to close conn\n", sig)
-	finPkt := packet.NewFinPkt()
-
-	stream, err := finPkt.Encode()
-	if err != nil {
-		log.Error(err)
-	}
-
-	_, err = conn.Write(stream)
-	if err != nil {
-		log.Error(err)
-	}
-
-	os.Exit(0)
-}
-
 func Run(cCtx *cli.Context) error {
+	// Parse args
 	logLevel := cCtx.String("log-level")
-
-	switch strings.ToUpper(logLevel) {
-	case "DEBUG":
-		log.SetLevel(log.DebugLevel)
-	case "INFO":
-		log.SetLevel(log.InfoLevel)
-	case "WARN":
-		log.SetLevel(log.WarnLevel)
-	default:
-		log.SetLevel(log.InfoLevel)
-	}
-
-	log.SetOutput(os.Stdout)
+	key := cCtx.String("key")
+	target := cCtx.String("target")
 
 	var user, passwd string
-
-	if err := cipher.SetAESKey(cCtx.String("key")); err != nil {
-		return err
-	}
 
 	if cCtx.String("passwd") == "" || cCtx.String("user") == "" {
 		u, p, err := GetLoginInfo()
@@ -101,7 +34,28 @@ func Run(cCtx *cli.Context) error {
 		passwd = cCtx.String("passwd")
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp4", cCtx.String("target"))
+	client := NewClient(
+		ClientSetKey(key),
+		ClientSetTarget(target),
+		ClientSetLogLevel(logLevel),
+		ClientSetUser(user),
+		ClientSetPasswd(passwd),
+	)
+
+	return client.Launch()
+}
+
+func (c *Client) Launch() error {
+	// Set AES key
+	if err := cipher.SetAESKey(c.key); err != nil {
+		return err
+	}
+
+	// Set log
+	c.SetLogLevel()
+
+	// Connect to server
+	udpAddr, err := net.ResolveUDPAddr("udp4", c.target)
 	if err != nil {
 		return err
 	}
@@ -111,10 +65,12 @@ func Run(cCtx *cli.Context) error {
 		return err
 	}
 
+	c.Conn = conn
+
 	// Handle signal
 	sigChan := make(chan os.Signal, 8)
 	signal.Notify(sigChan, os.Interrupt)
-	go handleSignal(conn, sigChan)
+	go c.HandleSignal(sigChan)
 
 	// Do auth
 	ipChan := make(chan string)
@@ -171,7 +127,7 @@ func Run(cCtx *cli.Context) error {
 	}()
 
 	// Auth
-	authPkt := packet.NewAuthPkt(user, passwd)
+	authPkt := packet.NewAuthPkt(c.user, c.password)
 	authStream, err := authPkt.Encode()
 	if err != nil {
 		log.Error("encode auth packet ", err)
@@ -190,18 +146,20 @@ func Run(cCtx *cli.Context) error {
 	// Waiting for dhcp ip
 	ipAddr := <-ipChan
 	authChan <- "ok"
-	log.Infof("auth with %s succeed, endpoint ip %s\n", user, ipAddr)
+	log.Infof("auth with %s succeed, endpoint ip %s\n", c.user, ipAddr)
+	c.IPAddr = ipAddr
 
 	iface, err := utils.NewTap(ipAddr)
 	if err != nil {
 		return err
 	}
+	c.Iface = iface
 
 	// Send keepalive
-	go DoKeepalive(conn, ipAddr, 10)
+	go c.DoKeepalive(10)
 
 	// Switch io between udp net and tap interface
-	go HandleConn(iface, netToIface, conn)
+	go c.HandleConn(netToIface)
 
 	wg.Wait()
 	return nil
