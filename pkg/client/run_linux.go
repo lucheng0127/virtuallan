@@ -1,12 +1,12 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 
 	"github.com/erikdubbelboer/gspt"
 	"github.com/lucheng0127/virtuallan/pkg/cipher"
@@ -14,6 +14,7 @@ import (
 	"github.com/lucheng0127/virtuallan/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 )
 
@@ -74,26 +75,28 @@ func (c *Client) Launch() error {
 
 	c.Conn = conn
 
+	// Use errgroup check goruntine error
+	g := new(errgroup.Group)
+
 	// Handle signal
 	sigChan := make(chan os.Signal, 8)
 	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)
-	go c.HandleSignal(sigChan)
+	g.Go(func() error {
+		return c.HandleSignal(sigChan)
+	})
 
 	// Do auth
 	ipChan := make(chan string)
 	netToIface := make(chan *packet.VLPkt, 1024)
-	var wg sync.WaitGroup
-	wg.Add(3)
 
 	// Handle udp packet
-	go func() {
+	g.Go(func() error {
 		for {
 			var buf [65535]byte
 			n, _, err := conn.ReadFromUDP(buf[:])
 
 			if err != nil {
-				log.Error("read from conn ", err)
-				os.Exit(1)
+				return fmt.Errorf("read from conn %s", err.Error())
 			}
 
 			if n < 2 {
@@ -110,14 +113,11 @@ func (c *Client) Launch() error {
 			case packet.P_RESPONSE:
 				switch pkt.VLBody.(*packet.RspBody).Code {
 				case packet.RSP_AUTH_REQUIRED:
-					log.Error("auth failed")
-					os.Exit(1)
+					return errors.New("auth failed")
 				case packet.RSP_IP_NOT_MATCH:
-					log.Error("ip not match")
-					os.Exit(1)
+					return errors.New("ip not match")
 				case packet.RSP_USER_LOGGED:
-					log.Error("user already logged by other endpoint")
-					os.Exit(1)
+					return errors.New("user already logged by other endpoint")
 				default:
 					continue
 				}
@@ -131,24 +131,24 @@ func (c *Client) Launch() error {
 				continue
 			}
 		}
-	}()
+	})
 
 	// Auth
 	authPkt := packet.NewAuthPkt(c.user, c.password)
 	authStream, err := authPkt.Encode()
 	if err != nil {
-		log.Error("encode auth packet ", err)
-		os.Exit(1)
+		return fmt.Errorf("encode auth packet %s", err.Error())
 	}
 
 	_, err = conn.Write(authStream)
 	if err != nil {
-		log.Error("send auth packet ", err)
-		os.Exit(1)
+		return fmt.Errorf("send auth packet %s", err.Error())
 	}
 
 	authChan := make(chan string, 1)
-	go checkLoginTimeout(authChan)
+	g.Go(func() error {
+		return checkLoginTimeout(authChan)
+	})
 
 	// Waiting for dhcp ip
 	ipAddr := <-ipChan
@@ -186,14 +186,21 @@ func (c *Client) Launch() error {
 
 	// XXX: Sometime when client restart too fast will not reveice the first multicast pkt
 	// Monitor multicast for route bordcast
-	go packet.MonitorRouteMulticast(tapIface, strings.Split(c.IPAddr, "/")[0])
+	g.Go(func() error {
+		return packet.MonitorRouteMulticast(tapIface, strings.Split(c.IPAddr, "/")[0])
+	})
 
 	// Send keepalive
 	go c.DoKeepalive(10)
 
 	// Switch io between udp net and tap interface
-	go c.HandleConn(netToIface)
+	g.Go(func() error {
+		return c.HandleConn(netToIface)
+	})
 
-	wg.Wait()
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
 	return nil
 }
