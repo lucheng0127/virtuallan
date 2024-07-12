@@ -83,13 +83,13 @@ func SendKeepalive(conn *net.UDPConn, addr string) error {
 	return nil
 }
 
-func (c *Client) DoKeepalive(interval int) {
+func (c *Client) DoKeepalive(interval int) error {
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
 	for {
 		err := SendKeepalive(c.Conn, c.IPAddr)
 		if err != nil {
-			log.Errorf("send keepalive to %s %s", c.Conn.RemoteAddr(), err.Error())
+			return fmt.Errorf("send keepalive to %s %s", c.Conn.RemoteAddr(), err.Error())
 		}
 		<-ticker.C
 	}
