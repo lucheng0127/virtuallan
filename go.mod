@@ -12,6 +12,7 @@ require (
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/vishvananda/netlink v1.1.0
+	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.19.0
 	golang.org/x/term v0.19.0
 	gopkg.in/yaml.v3 v3.0.1

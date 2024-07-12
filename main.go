@@ -22,7 +22,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Panic(err)
+		log.Error(err)
 		os.Exit(1)
 	}
 }

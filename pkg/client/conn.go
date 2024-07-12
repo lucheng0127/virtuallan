@@ -1,16 +1,19 @@
 package client
 
 import (
+	"fmt"
 	"net"
-	"os"
 	"time"
 
 	"github.com/lucheng0127/virtuallan/pkg/packet"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
-func (c *Client) HandleConn(netToIface chan *packet.VLPkt) {
-	go func() {
+func (c *Client) HandleConn(netToIface chan *packet.VLPkt) error {
+	g := new(errgroup.Group)
+
+	g.Go(func() error {
 		for {
 			pkt := <-netToIface
 			if pkt.Type != packet.P_RAW {
@@ -25,34 +28,40 @@ func (c *Client) HandleConn(netToIface chan *packet.VLPkt) {
 
 			_, err = c.Iface.Write(stream)
 			if err != nil {
-				log.Errorf("write to tap %s %s\n", c.Iface.Name(), err.Error())
-				continue
+				return fmt.Errorf("write to tap %s %s", c.Iface.Name(), err.Error())
 			}
 		}
-	}()
+	})
 
-	for {
-		var buf [65535]byte
+	g.Go(func() error {
+		for {
+			var buf [65535]byte
 
-		n, err := c.Iface.Read(buf[:])
-		if err != nil {
-			log.Errorf("read from tap %s %s\n", c.Iface.Name(), err.Error())
-			continue
+			n, err := c.Iface.Read(buf[:])
+			if err != nil {
+				log.Errorf("read from tap %s %s\n", c.Iface.Name(), err.Error())
+				continue
+			}
+
+			pkt := packet.NewRawPkt(buf[:n])
+			stream, err := pkt.Encode()
+			if err != nil {
+				log.Warn("encode raw vlpkt failed: ", err)
+				continue
+			}
+
+			_, err = c.Conn.Write(stream)
+			if err != nil {
+				return fmt.Errorf("send udp stream to %s %s", c.Conn.RemoteAddr().String(), err.Error())
+			}
 		}
+	})
 
-		pkt := packet.NewRawPkt(buf[:n])
-		stream, err := pkt.Encode()
-		if err != nil {
-			log.Warn("encode raw vlpkt failed: ", err)
-			continue
-		}
-
-		_, err = c.Conn.Write(stream)
-		if err != nil {
-			log.Errorf("send udp stream to %s %s\n", c.Conn.RemoteAddr().String(), err.Error())
-			os.Exit(1)
-		}
+	if err := g.Wait(); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 func SendKeepalive(conn *net.UDPConn, addr string) error {
@@ -74,13 +83,13 @@ func SendKeepalive(conn *net.UDPConn, addr string) error {
 	return nil
 }
 
-func (c *Client) DoKeepalive(interval int) {
+func (c *Client) DoKeepalive(interval int) error {
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 
 	for {
 		err := SendKeepalive(c.Conn, c.IPAddr)
 		if err != nil {
-			log.Errorf("send keepalive to %s %s", c.Conn.RemoteAddr(), err.Error())
+			return fmt.Errorf("send keepalive to %s %s", c.Conn.RemoteAddr(), err.Error())
 		}
 		<-ticker.C
 	}

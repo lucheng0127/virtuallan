@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -87,13 +88,12 @@ func GetLoginInfo() (string, string, error) {
 	return strings.TrimSpace(user), strings.TrimSpace(passwd), nil
 }
 
-func checkLoginTimeout(c chan string) {
+func checkLoginTimeout(c chan string) error {
 	select {
 	case <-c:
-		return
+		return nil
 	case <-time.After(10 * time.Second):
-		log.Error("login timeout")
-		os.Exit(1)
+		return errors.New("login timeout")
 	}
 }
 func (c *Client) Close() error {
@@ -112,15 +112,16 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) HandleSignal(sigChan chan os.Signal) {
+func (c *Client) HandleSignal(sigChan chan os.Signal) error {
 	sig := <-sigChan
 	log.Infof("received signal: %v, send fin pkt to close conn\n", sig)
 
 	if err := c.Close(); err != nil {
-		log.Errorf("send fin pkt %s", err.Error())
+		return fmt.Errorf("send fin pkt %s", err.Error())
 	}
 
 	os.Exit(0)
+	return nil
 }
 
 func (c *Client) SetLogLevel() {

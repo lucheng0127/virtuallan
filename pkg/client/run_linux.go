@@ -1,12 +1,12 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 
 	"github.com/erikdubbelboer/gspt"
 	"github.com/lucheng0127/virtuallan/pkg/cipher"
@@ -74,16 +74,21 @@ func (c *Client) Launch() error {
 
 	c.Conn = conn
 
+	// Use errChan capture goroutine error
+	errChan := make(chan error)
+
 	// Handle signal
 	sigChan := make(chan os.Signal, 8)
 	signal.Notify(sigChan, unix.SIGTERM, unix.SIGINT)
-	go c.HandleSignal(sigChan)
+	go func() {
+		if err := c.HandleSignal(sigChan); err != nil {
+			errChan <- err
+		}
+	}()
 
 	// Do auth
 	ipChan := make(chan string)
 	netToIface := make(chan *packet.VLPkt, 1024)
-	var wg sync.WaitGroup
-	wg.Add(3)
 
 	// Handle udp packet
 	go func() {
@@ -92,8 +97,7 @@ func (c *Client) Launch() error {
 			n, _, err := conn.ReadFromUDP(buf[:])
 
 			if err != nil {
-				log.Error("read from conn ", err)
-				os.Exit(1)
+				errChan <- fmt.Errorf("read from conn %s", err.Error())
 			}
 
 			if n < 2 {
@@ -110,14 +114,11 @@ func (c *Client) Launch() error {
 			case packet.P_RESPONSE:
 				switch pkt.VLBody.(*packet.RspBody).Code {
 				case packet.RSP_AUTH_REQUIRED:
-					log.Error("auth failed")
-					os.Exit(1)
+					errChan <- errors.New("auth failed")
 				case packet.RSP_IP_NOT_MATCH:
-					log.Error("ip not match")
-					os.Exit(1)
+					errChan <- errors.New("ip not match")
 				case packet.RSP_USER_LOGGED:
-					log.Error("user already logged by other endpoint")
-					os.Exit(1)
+					errChan <- errors.New("user already logged by other endpoint")
 				default:
 					continue
 				}
@@ -137,63 +138,81 @@ func (c *Client) Launch() error {
 	authPkt := packet.NewAuthPkt(c.user, c.password)
 	authStream, err := authPkt.Encode()
 	if err != nil {
-		log.Error("encode auth packet ", err)
-		os.Exit(1)
+		return fmt.Errorf("encode auth packet %s", err.Error())
 	}
 
 	_, err = conn.Write(authStream)
 	if err != nil {
-		log.Error("send auth packet ", err)
-		os.Exit(1)
+		return fmt.Errorf("send auth packet %s", err.Error())
 	}
 
 	authChan := make(chan string, 1)
-	go checkLoginTimeout(authChan)
+	go func() {
+		if err := checkLoginTimeout(authChan); err != nil {
+			errChan <- err
+		}
+	}()
 
-	// Waiting for dhcp ip
-	ipAddr := <-ipChan
-	authChan <- "ok"
-	log.Infof("auth with %s succeed, endpoint ip %s\n", c.user, ipAddr)
-	c.IPAddr = ipAddr
+	select {
+	case err := <-errChan:
+		return err
+	case ipAddr := <-ipChan:
+		// Waiting for dhcp ip
+		authChan <- "ok"
+		log.Infof("auth with %s succeed, endpoint ip %s\n", c.user, ipAddr)
+		c.IPAddr = ipAddr
 
-	iface, err := utils.NewTap("")
-	if err != nil {
+		iface, err := utils.NewTap("")
+		if err != nil {
+			return err
+		}
+		c.Iface = iface
+
+		// Set tap mac address according to ipv4 address,
+		// it will make sure each ip with a fixed mac address,
+		// so the arp entry will always be correct even when
+		// tap interface has been recreate
+		if err := utils.SetMacToTap(c.Iface.Name(), strings.Split(c.IPAddr, "/")[0]); err != nil {
+			return err
+		}
+
+		if err := utils.AsignAddrToLink(c.Iface.Name(), c.IPAddr, true); err != nil {
+			return err
+		}
+
+		// Add multicast route 224.0.0.1 dev tap
+		tapIface, err := net.InterfaceByName(c.Iface.Name())
+		if err != nil {
+			return fmt.Errorf("get tap interface %s", err.Error())
+		}
+
+		if err := utils.AddMulticastRouteToIface(fmt.Sprintf("%s/32", packet.MULTICAST_ADDR), tapIface.Index); err != nil {
+			return err
+		}
+
+		// XXX: Sometime when client restart too fast will not reveice the first multicast pkt
+		// Monitor multicast for route bordcast
+		go func() {
+			if err := packet.MonitorRouteMulticast(tapIface, strings.Split(c.IPAddr, "/")[0]); err != nil {
+				errChan <- err
+			}
+		}()
+
+		// Send keepalive
+		go func() {
+			if err := c.DoKeepalive(10); err != nil {
+				errChan <- err
+			}
+		}()
+
+		// Switch io between udp net and tap interface
+		go func() {
+			if err := c.HandleConn(netToIface); err != nil {
+				errChan <- err
+			}
+		}()
+
+		err = <-errChan
 		return err
 	}
-	c.Iface = iface
-
-	// Set tap mac address according to ipv4 address,
-	// it will make sure each ip with a fixed mac address,
-	// so the arp entry will always be correct even when
-	// tap interface has been recreate
-	if err := utils.SetMacToTap(c.Iface.Name(), strings.Split(c.IPAddr, "/")[0]); err != nil {
-		return err
-	}
-
-	if err := utils.AsignAddrToLink(c.Iface.Name(), c.IPAddr, true); err != nil {
-		return err
-	}
-
-	// Add multicast route 224.0.0.1 dev tap
-	tapIface, err := net.InterfaceByName(c.Iface.Name())
-	if err != nil {
-		return fmt.Errorf("get tap interface %s", err.Error())
-	}
-
-	if err := utils.AddMulticastRouteToIface(fmt.Sprintf("%s/32", packet.MULTICAST_ADDR), tapIface.Index); err != nil {
-		return err
-	}
-
-	// XXX: Sometime when client restart too fast will not reveice the first multicast pkt
-	// Monitor multicast for route bordcast
-	go packet.MonitorRouteMulticast(tapIface, strings.Split(c.IPAddr, "/")[0])
-
-	// Send keepalive
-	go c.DoKeepalive(10)
-
-	// Switch io between udp net and tap interface
-	go c.HandleConn(netToIface)
-
-	wg.Wait()
-	return nil
 }
