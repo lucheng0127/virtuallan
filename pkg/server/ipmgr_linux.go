@@ -57,6 +57,7 @@ func (svc *Server) IdxFromIP(ip net.IP) int {
 	return int(ipInt - ipStartInt)
 }
 
+// TODO(shawnlu): Implement it with hash map, username as input to count hash
 func (svc *Server) PopIPFromPool() (net.IP, error) {
 	for idx := 0; idx < svc.IPCount; idx++ {
 		if svc.IPIdxInPool(idx) {
