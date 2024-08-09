@@ -57,7 +57,43 @@ func (svc *Server) IdxFromIP(ip net.IP) int {
 	return int(ipInt - ipStartInt)
 }
 
-// TODO(shawnlu): Implement it with hash map, username as input to count hash
+func (svc *Server) IPForUser(username string) (net.IP, error) {
+	idx := utils.IdxFromString(svc.IPCount, username)
+	idxEnd := idx - 1
+
+	for idx < svc.IPCount {
+		if idx == idxEnd {
+			// Checked the last idx
+			if svc.IPIdxInPool(idx) {
+				break
+			}
+
+			svc.MLock.Lock()
+			svc.UsedIP = append(svc.UsedIP, idx)
+			svc.MLock.Unlock()
+			return svc.IPFromIdx(idx), nil
+		}
+
+		if svc.IPIdxInPool(idx) {
+			idx += 1
+
+			if idx == svc.IPCount {
+				// Check from zero
+				idx = 0
+			}
+
+			continue
+		}
+
+		svc.MLock.Lock()
+		svc.UsedIP = append(svc.UsedIP, idx)
+		svc.MLock.Unlock()
+		return svc.IPFromIdx(idx), nil
+	}
+
+	return nil, errors.New("run out of ip")
+}
+
 func (svc *Server) PopIPFromPool() (net.IP, error) {
 	for idx := 0; idx < svc.IPCount; idx++ {
 		if svc.IPIdxInPool(idx) {

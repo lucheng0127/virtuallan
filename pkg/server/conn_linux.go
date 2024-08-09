@@ -175,14 +175,14 @@ func (svc *Server) OfferIPToClient(conn *net.UDPConn, ip string, raddr *net.UDPA
 	return nil
 }
 
-func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*UClient, error) {
+func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn, username string) (*UClient, error) {
 	iface, err := utils.NewTap(svc.Bridge)
 	if err != nil {
 		return nil, err
 	}
 
 	// Pop a ip for client
-	ip, err := svc.PopIPFromPool()
+	ip, err := svc.IPForUser(username)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +198,8 @@ func (svc *Server) CreateClientForAddr(addr *net.UDPAddr, conn *net.UDPConn) (*U
 	client.CloseChan = make(chan string)
 	client.Svc = svc
 	client.IP = ip
+
+	log.Infof("new client remote addr %s ip %s login at %s\n", client.RAddr.String(), client.IP.String(), client.Login)
 
 	UPool[addr.String()] = client
 
@@ -276,7 +278,7 @@ func (svc *Server) ListenAndServe() error {
 			log.Infof("client %s login to %s succeed\n", addr.String(), u)
 
 			// Create client for authed addr
-			client, err := svc.CreateClientForAddr(addr, ln)
+			client, err := svc.CreateClientForAddr(addr, ln, u)
 			if err != nil {
 				log.Errorf("create authed client %s\n", err.Error())
 				svc.SendResponse(ln, packet.RSP_INTERNAL_ERR, addr)
