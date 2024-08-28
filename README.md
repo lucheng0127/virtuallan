@@ -1,6 +1,9 @@
 # virtuallan
 ## Description
-virtuallan is a l2vpn. It can setup an virtual Ethernet LAN network in WAN.
+Virtuallan is a l2vpn. It can setup an virtual Ethernet LAN network in WAN.
+
+Virtuallan use tap as interface, so can only support Linux and Windows
+For MacOS support, check it out in [vtun a cross-platform vpn](https://github.com/lucheng0127/vtun)
 
 ## Features
 * Basic auth for vpn endpoint
